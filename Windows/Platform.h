@@ -1,5 +1,7 @@
 #pragma once
+#ifndef NOMINMAX
 #define NOMINMAX
+#endif
 #include <windows.h>
 #include <windowsx.h>
 #include <shellapi.h>
@@ -160,6 +162,13 @@ class Insertion {
         LONG lower{},upper{}; SafeArrayGetLBound(array,1,&lower); SafeArrayGetUBound(array,1,&upper); std::vector<int> values;
         for(LONG i=lower;i<=upper;++i){int value{};SafeArrayGetElement(array,&i,&value);values.push_back(value);}SafeArrayDestroy(array);return values;
     }
+    static bool editable(IUIAutomationElement* e) {
+        ComPtr<IUIAutomationValuePattern> value;
+        if(SUCCEEDED(e->GetCurrentPatternAs(UIA_ValuePatternId,IID_PPV_ARGS(&value)))) { BOOL readonly=TRUE; return SUCCEEDED(value->get_CurrentIsReadOnly(&readonly))&&!readonly; }
+        CONTROLTYPEID type{};e->get_CurrentControlType(&type);
+        ComPtr<IUIAutomationTextPattern> text;
+        return (type==UIA_EditControlTypeId||type==UIA_DocumentControlTypeId)&&SUCCEEDED(e->GetCurrentPatternAs(UIA_TextPatternId,IID_PPV_ARGS(&text)));
+    }
 public:
     Insertion(){CoCreateInstance(CLSID_CUIAutomation,nullptr,CLSCTX_INPROC_SERVER,IID_PPV_ARGS(&automation_));}
     bool capture() {
@@ -167,13 +176,14 @@ public:
         if(pid_==GetCurrentProcessId()||!automation_)return false;
         ComPtr<IUIAutomationElement> element; if(FAILED(automation_->GetFocusedElement(&element)))return false;
         BOOL password{}; if(FAILED(element->get_CurrentIsPassword(&password))||password)return false;
+        if(!editable(element.Get()))return false;
         id_=runtimeId(element.Get()); return !id_.empty();
     }
     bool valid() {
         if(!automation_||GetForegroundWindow()!=window_)return false;
         ComPtr<IUIAutomationElement> element;if(FAILED(automation_->GetFocusedElement(&element)))return false;
         BOOL password{},enabled{}; element->get_CurrentIsPassword(&password); element->get_CurrentIsEnabled(&enabled);
-        if(password||!enabled)return false;
+        if(password||!enabled||!editable(element.Get()))return false;
         ComPtr<IUIAutomationValuePattern> value; if(SUCCEEDED(element->GetCurrentPatternAs(UIA_ValuePatternId,IID_PPV_ARGS(&value)))){BOOL readonly{};if(SUCCEEDED(value->get_CurrentIsReadOnly(&readonly))&&readonly)return false;}
         return sameTarget(reinterpret_cast<uintptr_t>(window_),reinterpret_cast<uintptr_t>(GetForegroundWindow()),id_,runtimeId(element.Get()));
     }

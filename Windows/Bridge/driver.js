@@ -1,6 +1,7 @@
 (() => {
   if(location.origin !== 'https://chatgpt.com' || window.top !== window) return;
   const action = async (action, expected = '') => {
+    if(action === 'fixtureSignal' && location.pathname === '/fixture.html') return {signal:!!window.__fixtureSignal};
 
     const visible = e => e && e.getClientRects().length > 0;
     const buttons = label => Array.from(document.querySelectorAll('button')).filter(e => visible(e) && e.getAttribute('aria-label') === label);

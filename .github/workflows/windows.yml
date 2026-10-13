@@ -25,6 +25,18 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $crt = Get-ChildItem "$vs\VC\Redist\MSVC" -Directory | Sort-Object Name -Descending | Select-Object -First 1
           Copy-Item "$($crt.FullName)\x64\Microsoft.VC143.CRT\*.dll" Windows/out/x64/Release/
+      - name: Verify actual Windows application and browser fixtures
+        shell: pwsh
+        run: |
+          $app = (Resolve-Path Windows/out/x64/Release/FlowGPT.exe).Path
+          $p = Start-Process $app -ArgumentList '--self-test' -PassThru
+          if (-not $p.WaitForExit(90000)) { $p.Kill(); throw 'Native fixture timeout' }
+          if ($p.ExitCode -ne 0) { Get-Content Windows/out/x64/Release/native-tests.json -ErrorAction SilentlyContinue; throw 'Native fixtures failed' }
+          Get-Content Windows/out/x64/Release/native-tests.json
+          $p = Start-Process $app -ArgumentList '--ui-smoke' -PassThru
+          if (-not $p.WaitForExit(30000)) { $p.Kill(); throw 'WinUI lifecycle timeout' }
+          $report = Get-Content Windows/out/x64/Release/ui-smoke.json | ConvertFrom-Json
+          if (-not $report.passed) { throw 'WinUI lifecycle fixture failed' }
       - name: Build EXE installer
         shell: pwsh
         run: |

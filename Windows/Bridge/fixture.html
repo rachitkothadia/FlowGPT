@@ -1,0 +1,35 @@
+<!doctype html><meta charset="utf-8"><title>FlowGPT isolated browser fixture</title>
+<button aria-label="Turn off temporary chat">Temporary</button>
+<div contenteditable="true" role="textbox" id="prompt-textarea"></div>
+<button aria-label="Dictate">Dictate</button>
+<button aria-label="Stop dictation" hidden>Stop</button>
+<button aria-label="Cancel dictation" hidden>Cancel</button>
+<script>
+const button = name => document.querySelector(`[aria-label="${name}"]`);
+let recorder, recorded=[], stream, audioSignal=false;
+button('Dictate').onclick = async () => {
+  stream = await navigator.mediaDevices.getUserMedia({audio:true});
+  recorder = new MediaRecorder(stream);
+  recorded = [];
+  recorder.ondataavailable = e => recorded.push(e.data);
+  recorder.onstop = async () => {
+    const context = new AudioContext();
+    try {
+      const data = await context.decodeAudioData(await new Blob(recorded).arrayBuffer());
+      const samples = data.getChannelData(0); let power=0;
+      for(const v of samples)power+=v*v;
+      audioSignal = Math.sqrt(power/Math.max(1,samples.length)) > 0.01;
+      window.__fixtureSignal=audioSignal;
+    } catch { audioSignal=false; }
+    await context.close();
+    document.querySelector('#prompt-textarea').innerText='नमस्ते English मराठी 🎤';
+    button('Dictate').hidden=false;button('Stop dictation').hidden=true;button('Cancel dictation').hidden=true;
+  };
+  recorder.start();button('Dictate').hidden=true;button('Stop dictation').hidden=false;button('Cancel dictation').hidden=false;
+};
+button('Stop dictation').onclick=()=>recorder.stop();
+button('Cancel dictation').onclick=()=>{if(recorder?.state==='recording')recorder.stop();};
+window.chrome.webview.addEventListener('message',event=>{
+  if(event.data.type==='fixture-signal')window.chrome.webview.postMessage({type:'fixture-signal',ok:audioSignal});
+});
+</script>

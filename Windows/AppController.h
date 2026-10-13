@@ -83,8 +83,9 @@ public:
     double recorderMs=0;
     bool hotkeyReady=false;
     std::function<void()> changed=[]{};
-    explicit AppController(HWND owner):owner_(owner) {
+    explicit AppController(HWND owner,bool fixture=false):owner_(owner),store(fixture?std::filesystem::temp_directory_path()/(L"FlowGPT-UI-"+guid()):dataPath()),browser(store.root()/L"WebView2",fixture) {
         try{store.load();historyReady_=true;}catch(...){message=L"Local history/settings could not be read. Existing data was preserved; recording is disabled.";}
+        if(fixture&&historyReady_)store.save(L"आज के लिए तीन काम हैं:\n1. Send the project proposal.\n2. Grocery shopping कर लेना.\n3. Review meeting notes.");
         browser.interrupted=[this]{if(busy(session.state))fail(L"Browser interrupted during recording; no incomplete result was pasted.");};browser.init();
     }
     ~AppController(){microphone.stop();insertion.restore(owner_);browser.close();}
