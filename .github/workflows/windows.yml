@@ -41,8 +41,8 @@ jobs:
           $app = (Resolve-Path Windows/out/x64/Release/FlowGPT.exe).Path
           $p = Start-Process $app -ArgumentList '--self-test' -PassThru
           if (-not $p.WaitForExit(90000)) { $p.Kill(); throw 'Native fixture timeout' }
-          if ($p.ExitCode -ne 0) { Get-Content Windows/out/x64/Release/native-tests.json -ErrorAction SilentlyContinue; throw 'Native fixtures failed' }
           Get-Content Windows/out/x64/Release/native-tests.json
+          $nativePassed = $p.ExitCode -eq 0
           Add-Type -AssemblyName System.Drawing
           Add-Type 'using System; using System.Runtime.InteropServices; public static class FlowCapture { [StructLayout(LayoutKind.Sequential)] public struct Rect { public int Left,Top,Right,Bottom; } [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out Rect r); }'
           $p = Start-Process $app -ArgumentList '--ui-smoke' -PassThru
@@ -64,6 +64,7 @@ jobs:
           }
           $report = Get-Content Windows/out/x64/Release/ui-smoke.json | ConvertFrom-Json
           if (-not $report.passed) { throw 'WinUI lifecycle fixture failed' }
+          if (-not $nativePassed) { throw 'Native fixtures failed; UI lifecycle was checked separately' }
       - name: Build EXE installer
         shell: pwsh
         run: |

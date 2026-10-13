@@ -129,10 +129,11 @@ class ClipboardLease {
     struct Format { UINT id; std::vector<unsigned char> data; };
     std::vector<Format> saved_;
     DWORD owned_=0;
+    std::wstring published_;
 public:
     bool write(HWND owner,const std::wstring& text) {
         if(!OpenClipboard(owner)) return false;
-        struct Close { ~Close(){CloseClipboard();} } close;
+        struct Close { bool active=true;void finish(){if(active){CloseClipboard();active=false;}}~Close(){finish();} } close;
         for(UINT id=EnumClipboardFormats(0);id;id=EnumClipboardFormats(id)) {
             HANDLE handle=GetClipboardData(id); size_t n=GlobalSize(handle);
             // Do not destroy unsupported GDI/delayed formats to perform a paste.
@@ -143,13 +144,19 @@ public:
         HGLOBAL memory=GlobalAlloc(GMEM_MOVEABLE,(text.size()+1)*sizeof(wchar_t)); if(!memory) return false;
         auto p=GlobalLock(memory); if(!p){GlobalFree(memory);return false;} memcpy(p,text.c_str(),(text.size()+1)*sizeof(wchar_t)); GlobalUnlock(memory);
         if(!EmptyClipboard() || !SetClipboardData(CF_UNICODETEXT,memory)){GlobalFree(memory); restoreContents();return false;}
-        owned_=GetClipboardSequenceNumber(); return true;
+        published_=text;
+        // Closing publication can render Windows' synthesized text formats and
+        // advance the sequence. Observe the completed publication, not the lock.
+        close.finish();owned_=GetClipboardSequenceNumber();return true;
     }
     void restoreContents() {
         EmptyClipboard();
         for(auto& f:saved_) { HGLOBAL memory=GlobalAlloc(GMEM_MOVEABLE,f.data.size()); if(!memory)continue; void* p=GlobalLock(memory); if(!p){GlobalFree(memory);continue;} memcpy(p,f.data.data(),f.data.size()); GlobalUnlock(memory); if(!SetClipboardData(f.id,memory))GlobalFree(memory); }
     }
-    void restore(HWND owner) { if(!owned_ || !mayRestore(owned_,GetClipboardSequenceNumber())) return; if(!OpenClipboard(owner))return; if(mayRestore(owned_,GetClipboardSequenceNumber()))restoreContents(); CloseClipboard(); owned_=0; }
+    void restore(HWND owner) { if(!owned_ || !mayRestore(owned_,GetClipboardSequenceNumber())) return; if(!OpenClipboard(owner))return;
+        HANDLE h=GetClipboardData(CF_UNICODETEXT);const auto* p=static_cast<const wchar_t*>(GlobalLock(h));bool stillPublished=GetClipboardOwner()==owner&&p&&published_==p;if(p)GlobalUnlock(h);
+        if(stillPublished&&mayRestore(owned_,GetClipboardSequenceNumber()))restoreContents();CloseClipboard();owned_=0;
+    }
 };
 class Insertion {
     ComPtr<IUIAutomation> automation_;
