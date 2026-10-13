@@ -26,6 +26,15 @@ jobs:
           $crt = Get-ChildItem "$vs\VC\Redist\MSVC" -Directory | Sort-Object Name -Descending | Select-Object -First 1
           $crtFolder = Get-ChildItem "$($crt.FullName)\x64" -Directory | Where-Object Name -like 'Microsoft.VC*.CRT' | Sort-Object Name -Descending | Select-Object -First 1
           Copy-Item "$($crtFolder.FullName)\*.dll" Windows/out/x64/Release/
+      - name: Prepare verified WebView2 Runtime
+        shell: pwsh
+        run: |
+          Invoke-WebRequest 'https://go.microsoft.com/fwlink/p/?LinkId=2124703' -OutFile Windows/Installer/WebView2Bootstrapper.exe
+          $signature = Get-AuthenticodeSignature Windows/Installer/WebView2Bootstrapper.exe
+          if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'Microsoft') { throw 'WebView2 redistributable signature invalid' }
+          $p = Start-Process Windows/Installer/WebView2Bootstrapper.exe -ArgumentList '/silent /install' -PassThru
+          if (-not $p.WaitForExit(90000)) { $p.Kill(); throw 'WebView2 runtime setup timeout' }
+          if ($p.ExitCode -ne 0) { throw "WebView2 runtime setup failed: $($p.ExitCode)" }
       - name: Verify actual Windows application and browser fixtures
         shell: pwsh
         run: |
@@ -41,12 +50,26 @@ jobs:
       - name: Build EXE installer
         shell: pwsh
         run: |
-          Invoke-WebRequest 'https://go.microsoft.com/fwlink/p/?LinkId=2124703' -OutFile Windows/Installer/WebView2Bootstrapper.exe
-          $signature = Get-AuthenticodeSignature Windows/Installer/WebView2Bootstrapper.exe
-          if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'Microsoft') { throw 'WebView2 redistributable signature invalid' }
           & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" Windows/Installer/FlowGPT.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Get-FileHash release/windows/*.exe -Algorithm SHA256 | Format-List | Out-File release/windows/SHA256SUMS.txt
+      - name: Verify installed payload and uninstall
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem release/windows/*Setup.exe | Select-Object -First 1
+          $destination = Join-Path $env:RUNNER_TEMP 'FlowGPT-installed-fixture'
+          $p = Start-Process $installer.FullName -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DIR=`"$destination`"" -PassThru
+          if (-not $p.WaitForExit(90000)) { $p.Kill(); throw 'Installer timeout' }
+          if ($p.ExitCode -ne 0 -or -not (Test-Path "$destination/FlowGPT.exe")) { throw 'Installation failed' }
+          $original = (Get-FileHash Windows/out/x64/Release/FlowGPT.exe).Hash
+          if ((Get-FileHash "$destination/FlowGPT.exe").Hash -ne $original) { throw 'Installed executable differs' }
+          $p = Start-Process "$destination/FlowGPT.exe" -ArgumentList '--ui-smoke' -PassThru
+          if (-not $p.WaitForExit(30000)) { $p.Kill(); throw 'Installed WinUI app timeout' }
+          $report = Get-Content "$destination/ui-smoke.json" | ConvertFrom-Json
+          if (-not $report.passed) { throw 'Installed application lifecycle failed' }
+          $p = Start-Process "$destination/unins000.exe" -ArgumentList '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART' -PassThru
+          if (-not $p.WaitForExit(30000)) { $p.Kill(); throw 'Uninstaller timeout' }
+          if (Test-Path "$destination/FlowGPT.exe") { throw 'Installed app not removed' }
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:

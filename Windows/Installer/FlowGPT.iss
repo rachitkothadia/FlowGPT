@@ -45,6 +45,6 @@ Filename: "{app}\FlowGPT.exe"; Description: "Open FlowGPT"; Flags: nowait postin
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
   if CurUninstallStep = usPostUninstall then
-    if MsgBox('Also delete local FlowGPT transcripts, settings, and ChatGPT sign-in data? Choose No to keep them for reinstalling.', mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES then
+    if SuppressibleMsgBox('Also delete local FlowGPT transcripts, settings, and ChatGPT sign-in data? Choose No to keep them for reinstalling.', mbConfirmation, MB_YESNO or MB_DEFBUTTON2, IDNO) = IDYES then
       DelTree(ExpandConstant('{localappdata}\FlowGPT'), True, True, True);
 end;
