@@ -10,9 +10,9 @@
 #include <microsoft.ui.xaml.window.h>
 
 using namespace winrt;
-using namespace Microsoft::UI::Xaml;
-using namespace Microsoft::UI::Xaml::Controls;
-using namespace Microsoft::UI::Xaml::Media;
+using namespace winrt::Microsoft::UI::Xaml;
+using namespace winrt::Microsoft::UI::Xaml::Controls;
+using namespace winrt::Microsoft::UI::Xaml::Media;
 namespace {
 constexpr UINT TrayMessage=WM_APP+3;
 struct App : ApplicationT<App> {

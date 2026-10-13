@@ -15,6 +15,7 @@
 #include <wrl.h>
 #include <winrt/Windows.Data.Json.h>
 #include <winrt/Windows.Foundation.h>
+#include <winrt/Windows.Foundation.Collections.h>
 #include <fstream>
 #include <filesystem>
 #include <thread>
