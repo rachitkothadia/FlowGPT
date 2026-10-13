@@ -20,6 +20,7 @@ button('Dictate').onclick = async () => {
       for(const v of samples)power+=v*v;
       audioSignal = Math.sqrt(power/Math.max(1,samples.length)) > 0.01;
       window.__fixtureSignal=audioSignal;
+      window.__fixtureDuration=data.duration;
     } catch { audioSignal=false; }
     await context.close();
     document.querySelector('#prompt-textarea').innerText='नमस्ते English मराठी 🎤';

@@ -1,7 +1,7 @@
 (() => {
   if(location.origin !== 'https://chatgpt.com' || window.top !== window) return;
   const action = async (action, expected = '') => {
-    if(action === 'fixtureSignal' && location.pathname === '/fixture.html') return {signal:!!window.__fixtureSignal};
+    if(action === 'fixtureSignal' && location.pathname === '/fixture.html') return {signal:!!window.__fixtureSignal,duration:window.__fixtureDuration||0};
 
     const visible = e => e && e.getClientRects().length > 0;
     const buttons = label => Array.from(document.querySelectorAll('button')).filter(e => visible(e) && e.getAttribute('aria-label') === label);
@@ -26,7 +26,7 @@
     }
     if (action === 'capture') { if (!window.__flowAudio) return {error:'The microphone bridge did not load. Reload the connection.'}; return await window.__flowAudio.begin(); }
     if (action === 'captureNative') { if (!window.__flowAudio) return {error:'The microphone bridge did not load. Reload the connection.'}; return await window.__flowAudio.begin(true); }
-    if (action === 'feedAudio') { if (!window.__flowAudio?.state().active) return {error:'The audio renderer disconnected. Captured audio was not acknowledged.'}; window.__flowAudio.push(expected); return {ok:true}; }
+    if (action === 'feedAudio') { if (!window.__flowAudio?.state().active) return {error:'The audio renderer disconnected. Captured audio was not acknowledged.'}; await window.__flowAudio.push(expected); return {ok:true}; }
     if (action === 'playAudio') { window.__flowAudio?.play(); return {ok:true}; }
     if (action === 'freezeAudio') { window.__flowAudio?.stop(); return {ok:true}; }
     if (action === 'endAudio') { await window.__flowAudio?.end(); return {ok:true}; }

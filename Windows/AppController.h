@@ -6,7 +6,7 @@ class AppController {
     bool historyReady_=false, queryPending_=false, feedPending_=false, commandPending_=false;
     int phase_=0;
     bool frozen_=false, stopSent_=false;
-    double startAt_=0, stopAt_=0, stableAt_=0, lastHealth_=0, pasteAt_=0;
+    double startAt_=0, stopAt_=0, stableAt_=0, lastHealth_=0, pasteAt_=0, drainedAt_=0;
     std::wstring stable_;
     Recovery recovery_;
     HWND owner_{};
@@ -50,6 +50,8 @@ class AppController {
         if(session.state!=State::transcribing||phase_!=3)return;
         if(!frozen_ && microphone.audio.pending()==0&&!feedPending_&&!commandPending_) {command(L"freezeAudio",[this](Json){frozen_=true;});return;}
         if(frozen_&&!stopSent_&&state.GetNamedNumber(L"audioQueued",1)<=0&&!commandPending_){
+            if(drainedAt_==0){drainedAt_=now();return;}
+            if(now()-drainedAt_<0.15)return;
             if(state.GetNamedBoolean(L"recording",false)){command(L"stop",[this](Json){stopSent_=true;});return;}
             stopSent_=true;
         }
@@ -94,7 +96,7 @@ public:
         if(!historyReady_){message=L"Resolve local history storage before recording";changed();return;}
         if(busy(session.state))return;
         DWORD pid{};GetWindowThreadProcessId(GetForegroundWindow(),&pid);preview=preview||pid==GetCurrentProcessId();
-        session.begin(preview);result.clear();draftNotice.clear();stable_.clear();phase_=0;frozen_=stopSent_=false;queryPending_=feedPending_=commandPending_=false;pasteAt_=0;startAt_=now();recorderMs=0;
+        session.begin(preview);result.clear();draftNotice.clear();stable_.clear();phase_=0;frozen_=stopSent_=false;queryPending_=feedPending_=commandPending_=false;pasteAt_=0;drainedAt_=0;startAt_=now();recorderMs=0;
         message=L"Starting microphone…";
         // Capture must not wait for cross-process UI Automation providers.
         microphone.start(std::wstring(store.settings.GetNamedString(L"microphone",L"")));

@@ -60,7 +60,7 @@
             if (context.state !== 'running') throw Error('The audio renderer is paused. Open the connection window once, then retry.');
             const source = stream ? context.createMediaStreamSource(stream) : null, destination = context.createMediaStreamDestination();
             if (native && context.sampleRate !== 16000) throw Error('The browser audio renderer did not accept 16 kHz audio.');
-            const c = {stream, context, source, destination, node: null, queue: null, level: 0, count: 0, failed: false, attached: false, stopped: false, input: stream?.getAudioTracks()[0]?.label || 'Native microphone'};
+            const c = {stream, context, source, destination, node: null, queue: null, level: 0, count: 0, failed: false, attached: false, stopped: false, next:1, acks:new Map(), input: stream?.getAudioTracks()[0]?.label || 'Native microphone'};
             const worklet = String.raw`
     
     class FlowAudioQueue {
@@ -89,7 +89,7 @@
     }
     
               class FlowBufferProcessor extends AudioWorkletProcessor {
-                constructor() { super(); this.queue = new FlowAudioQueue(Math.ceil(sampleRate * 30)); this.frames = 0; this.port.onmessage = e => { if (e.data === 'play') this.queue.playing = true; else if (e.data === 'stop') this.queue.stopped = true; else if (e.data instanceof Float32Array) this.queue.enqueue(e.data); }; }
+                constructor() { super(); this.queue = new FlowAudioQueue(Math.ceil(sampleRate * 30)); this.frames = 0; this.port.onmessage = e => { if (e.data === 'play') this.queue.playing = true; else if (e.data === 'stop') this.queue.stopped = true; else if (e.data?.samples instanceof Float32Array) { this.queue.enqueue(e.data.samples); this.port.postMessage({ack:e.data.id,level:this.queue.level,count:this.queue.count,failed:this.queue.failed}); } }; }
                 process(inputs, outputs) {
                   const output = outputs[0]?.[0]; if (!output) return true;
                   this.queue.process(inputs[0]?.[0] || new Float32Array(0), output);
@@ -105,7 +105,7 @@
               const url = URL.createObjectURL(new Blob([worklet], {type: 'application/javascript'}));
               try { await context.audioWorklet.addModule(url); } finally { URL.revokeObjectURL(url); }
               c.node = new AudioWorkletNode(context, 'flow-buffer', {numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1], channelCount: 1});
-              c.node.port.onmessage = e => { c.level = e.data.level; c.count = e.data.count; c.failed = e.data.failed; };
+              c.node.port.onmessage = e => { c.level = e.data.level; c.count = e.data.count; c.failed = e.data.failed; const ack=c.acks.get(e.data.ack); if(ack){c.acks.delete(e.data.ack);ack(e.data.failed);} };
             } catch {
               // ChatGPT CSP/older WebKit may block a blob worklet. Keep the same
               // FIFO with the compatible processor, never silently drop the prefix.
@@ -119,13 +119,19 @@
             return {input: c.input};
           } catch (error) { stream?.getTracks().forEach(t => t.stop()); if (context) await context.close(); throw error; }
         },
-        push(encoded) {
+        async push(encoded) {
           const c = current; if (!c || c.stopped) throw Error('The native audio destination is unavailable.');
           const binary = atob(encoded), bytes = new Uint8Array(binary.length);
           for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
           const samples = new Float32Array(bytes.buffer);
-          if (c.node.port) c.node.port.postMessage(samples, [samples.buffer]);
-          else { c.queue.enqueue(samples); c.count = c.queue.count; c.failed = c.queue.failed; }
+          if (c.node.port) {
+            const id=c.next++;
+            await new Promise((resolve,reject)=>{
+              const timeout=setTimeout(()=>{c.acks.delete(id);reject(Error('Audio renderer did not acknowledge the captured samples.'));},2000);
+              c.acks.set(id,failed=>{clearTimeout(timeout);failed?reject(Error('Audio buffer filled.')):resolve();});
+              c.node.port.postMessage({id,samples}, [samples.buffer]);
+            });
+          } else { c.queue.enqueue(samples); c.count = c.queue.count; c.failed = c.queue.failed; if(c.failed)throw Error('Audio buffer filled.'); }
           return true;
         },
         play() { command('play'); },
