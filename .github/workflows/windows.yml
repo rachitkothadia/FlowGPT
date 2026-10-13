@@ -24,7 +24,8 @@ jobs:
           & "$vs\MSBuild\Current\Bin\MSBuild.exe" Windows/FlowGPT.vcxproj /restore /p:Configuration=Release /p:Platform=x64 /m /verbosity:minimal
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $crt = Get-ChildItem "$vs\VC\Redist\MSVC" -Directory | Sort-Object Name -Descending | Select-Object -First 1
-          Copy-Item "$($crt.FullName)\x64\Microsoft.VC143.CRT\*.dll" Windows/out/x64/Release/
+          $crtFolder = Get-ChildItem "$($crt.FullName)\x64" -Directory | Where-Object Name -like 'Microsoft.VC*.CRT' | Sort-Object Name -Descending | Select-Object -First 1
+          Copy-Item "$($crtFolder.FullName)\*.dll" Windows/out/x64/Release/
       - name: Verify actual Windows application and browser fixtures
         shell: pwsh
         run: |
