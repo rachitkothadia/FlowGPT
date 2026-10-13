@@ -94,10 +94,12 @@ public:
         if(!historyReady_){message=L"Resolve local history storage before recording";changed();return;}
         if(busy(session.state))return;
         DWORD pid{};GetWindowThreadProcessId(GetForegroundWindow(),&pid);preview=preview||pid==GetCurrentProcessId();
-        if(!preview&&!insertion.capture()){message=L"Focus an editable non-password field, then use your shortcut";changed();return;}
         session.begin(preview);result.clear();draftNotice.clear();stable_.clear();phase_=0;frozen_=stopSent_=false;queryPending_=feedPending_=commandPending_=false;pasteAt_=0;startAt_=now();recorderMs=0;
-        browser.active=true;browser.hide();message=L"Starting microphone…";
-        microphone.start(std::wstring(store.settings.GetNamedString(L"microphone",L"")));changed();
+        message=L"Starting microphone…";
+        // Capture must not wait for cross-process UI Automation providers.
+        microphone.start(std::wstring(store.settings.GetNamedString(L"microphone",L"")));
+        if(!preview&&!insertion.capture()){fail(L"Focus an editable non-password field, then use your shortcut");return;}
+        browser.active=true;browser.hide();changed();
     }
     void finish() {
         if(session.state==State::starting){session.stopRequested=true;microphone.stop();session.state=State::transcribing;stopAt_=now();message=L"Finishing captured speech…";changed();return;}
@@ -127,6 +129,6 @@ public:
         if(!queryPending_&&browser.ready()){queryPending_=true;auto token=session.generation;browser.call(L"state",[this,token](Json j){queryPending_=false;if(token!=session.generation)return;page(j);});}
         if(!busy(session.state)&&now()-lastHealth_>=3){lastHealth_=now();if(!browser.connected&&now()-browser.loadedAt>20&&recovery_.request(now(),false,browser.needsLogin,browser.hasDraft))browser.reload();}
     }
-    std::wstring diagnostics() const {Json o;o.Insert(L"version",JValue::CreateStringValue(L"1.0.0-windows-preview"));o.Insert(L"architecture",JValue::CreateStringValue(L"x64"));o.Insert(L"state",JValue::CreateNumberValue(int(session.state)));o.Insert(L"hotkeyRegistered",JValue::CreateBooleanValue(hotkeyReady));o.Insert(L"connected",JValue::CreateBooleanValue(browser.connected));o.Insert(L"firstAudioMs",JValue::CreateNumberValue(microphone.firstMs()));o.Insert(L"recorderStartMs",JValue::CreateNumberValue(recorderMs));o.Insert(L"historyEntries",JValue::CreateNumberValue(store.entries.size()));o.Insert(L"captureError",JValue::CreateNumberValue(microphone.error()));return std::wstring(o.Stringify());}
+    std::wstring diagnostics() const {Json o;o.Insert(L"version",JValue::CreateStringValue(L"1.0.0-windows-preview"));o.Insert(L"architecture",JValue::CreateStringValue(L"x64"));o.Insert(L"state",JValue::CreateNumberValue(int(session.state)));o.Insert(L"hotkeyRegistered",JValue::CreateBooleanValue(hotkeyReady));o.Insert(L"connected",JValue::CreateBooleanValue(browser.connected));o.Insert(L"firstAudioMs",JValue::CreateNumberValue(microphone.firstMs()));o.Insert(L"recorderStartMs",JValue::CreateNumberValue(recorderMs));o.Insert(L"historyEntries",JValue::CreateNumberValue(double(store.entries.size())));o.Insert(L"captureError",JValue::CreateNumberValue(microphone.error()));return std::wstring(o.Stringify());}
 };
 }

@@ -171,7 +171,7 @@ class Insertion {
         return (type==UIA_EditControlTypeId||type==UIA_DocumentControlTypeId)&&SUCCEEDED(e->GetCurrentPatternAs(UIA_TextPatternId,IID_PPV_ARGS(&text)));
     }
 public:
-    Insertion(){CoCreateInstance(CLSID_CUIAutomation,nullptr,CLSCTX_INPROC_SERVER,IID_PPV_ARGS(&automation_));}
+    Insertion(){CoCreateInstance(CLSID_CUIAutomation,nullptr,CLSCTX_INPROC_SERVER,IID_PPV_ARGS(&automation_));ComPtr<IUIAutomation2> timed;if(automation_&&SUCCEEDED(automation_.As(&timed))){timed->put_ConnectionTimeout(1000);timed->put_TransactionTimeout(1000);}}
     bool capture() {
         sent_=false; id_.clear(); window_=GetForegroundWindow(); GetWindowThreadProcessId(window_,&pid_);
         if(pid_==GetCurrentProcessId()||!automation_)return false;

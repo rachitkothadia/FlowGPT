@@ -1,8 +1,10 @@
 #include "AppController.h"
 #include "Hud.h"
 #include "NativeTests.h"
+#undef GetCurrentTime
 #include <winrt/Microsoft.UI.Xaml.h>
 #include <winrt/Microsoft.UI.Xaml.Controls.h>
+#include <winrt/Microsoft.UI.Xaml.Controls.Primitives.h>
 #include <winrt/Microsoft.UI.Xaml.Markup.h>
 #include <winrt/Microsoft.UI.Xaml.Media.h>
 #include <winrt/Microsoft.UI.Dispatching.h>
@@ -24,7 +26,7 @@ struct App : ApplicationT<App> {
     App(){Resources().MergedDictionaries().Append(XamlControlsResources());}
     static TextBlock label(const std::wstring& value,double size=14){TextBlock t;t.Text(value);t.FontSize(size);t.TextWrapping(TextWrapping::Wrap);return t;}
     template<typename F> Button button(const std::wstring& text,F fn){Button b;b.Content(box_value(text));b.Click([fn](auto&&,auto&&){fn();});return b;}
-    static SolidColorBrush green(){return SolidColorBrush(Windows::UI::Color{255,84,139,120});}
+    static SolidColorBrush green(){return SolidColorBrush(winrt::Windows::UI::Color{255,84,139,120});}
     void OnLaunched(LaunchActivatedEventArgs const&){
         std::wstring args=GetCommandLineW();background=args.find(L"--background")!=std::wstring::npos;smoke=args.find(L"--ui-smoke")!=std::wstring::npos;preview=smoke||args.find(L"--design-preview")!=std::wstring::npos;
         window=Window();window.Title(L"FlowGPT");window.as<IWindowNative>()->get_WindowHandle(&hwnd);SetWindowSubclass(hwnd,procedure,1,reinterpret_cast<DWORD_PTR>(this));
