@@ -63,6 +63,15 @@ public:
         return true;
     }
     AudioChunk peek() const { std::lock_guard<std::mutex> l(mutex_); return chunks_.empty() ? AudioChunk{} : chunks_.front(); }
+    AudioChunk peekBatch(size_t maximum) const {
+        std::lock_guard<std::mutex> l(mutex_);AudioChunk batch;
+        for(const auto& chunk:chunks_){if(!batch.samples.empty()&&batch.samples.size()+chunk.samples.size()>maximum)break;batch.id=chunk.id;batch.samples.insert(batch.samples.end(),chunk.samples.begin(),chunk.samples.end());if(batch.samples.size()>=maximum)break;}
+        return batch;
+    }
+    bool acknowledgeThrough(uint64_t id) {
+        std::lock_guard<std::mutex> l(mutex_);auto last=std::find_if(chunks_.begin(),chunks_.end(),[id](const auto& c){return c.id==id;});if(last==chunks_.end())return false;
+        do{const auto front=chunks_.front().id;size_-=chunks_.front().samples.size();chunks_.pop_front();if(front==id)break;}while(!chunks_.empty());return true;
+    }
     bool acknowledge(uint64_t id) { std::lock_guard<std::mutex> l(mutex_); if (chunks_.empty() || chunks_.front().id != id) return false; size_ -= chunks_.front().samples.size(); chunks_.pop_front(); return true; }
     size_t pending() const { std::lock_guard<std::mutex> l(mutex_); return size_; }
     bool failed() const { std::lock_guard<std::mutex> l(mutex_); return failed_; }

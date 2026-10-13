@@ -16,9 +16,9 @@ class AppController {
         browser.call(action,[this,token,fn](Json j){if(!session.current(token))return;commandPending_=false;if(j.HasKey(L"error")){fail(std::wstring(j.GetNamedString(L"error")));return;}fn(j);},expected);
     }
     void feed() {
-        if(feedPending_||phase_<1||phase_>3)return;auto chunk=microphone.audio.peek();if(chunk.samples.empty())return;
+        if(feedPending_||phase_<1||phase_>3)return;auto chunk=microphone.audio.peekBatch(3200);if(chunk.samples.empty())return;
         auto token=session.generation;feedPending_=true;
-        browser.call(L"feedAudio",[this,token,id=chunk.id](Json j){if(!session.current(token))return;feedPending_=false;if(j.HasKey(L"error")){fail(L"Captured audio could not reach ChatGPT. No incomplete text was pasted.");return;}if(!microphone.audio.acknowledge(id))fail(L"Audio delivery order failed");},wide(base64(chunk.samples.data(),chunk.samples.size()*sizeof(float))));
+        browser.call(L"feedAudio",[this,token,id=chunk.id](Json j){if(!session.current(token))return;feedPending_=false;if(j.HasKey(L"error")){fail(L"Captured audio could not reach ChatGPT. No incomplete text was pasted.");return;}if(!microphone.audio.acknowledgeThrough(id)){fail(L"Audio delivery order failed");return;}feed();},wide(base64(chunk.samples.data(),chunk.samples.size()*sizeof(float))));
     }
     void page(Json state) {
         if(state.HasKey(L"error"))return;

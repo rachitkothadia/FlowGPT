@@ -52,7 +52,9 @@ inline int nativeTests(){
         check(L"webviewFixtureReady",browser.ready());check(L"temporaryChatVerified",request(L"state")&&result.GetNamedBoolean(L"temporary",false));
         check(L"browserHidden",!browser.visible());check(L"nativeStreamCreated",request(L"captureNative"));
         std::vector<float> samples(16000);for(size_t i=0;i<samples.size();++i)samples[i]=float(0.3*std::sin(i*2*3.141592653589793*440/16000));
-        check(L"openingAudioQueued",request(L"feedAudio",wide(base64(samples.data(),samples.size()*4))));check(L"recorderStarted",request(L"start"));
+        AudioQueue opening;for(size_t i=0;i<samples.size();i+=160)opening.push(samples.data()+i,160);bool delivered=true;
+        while(opening.pending()){auto batch=opening.peekBatch(3200);if(!request(L"feedAudio",wide(base64(batch.samples.data(),batch.samples.size()*4)))||!opening.acknowledgeThrough(batch.id)){delivered=false;break;}}
+        check(L"openingAudioQueued",delivered&&opening.pending()==0);check(L"recorderStarted",request(L"start"));
         deadline=now()+5;bool attached=false;while(now()<deadline){if(request(L"state")&&result.GetNamedBoolean(L"audioAttached",false)){attached=true;break;}Sleep(30);messages();}check(L"nativeAudioAttached",attached);
         check(L"audioPlaybackStarted",request(L"playAudio"));check(L"audioFrozen",request(L"freezeAudio"));
         deadline=now()+6;bool drained=false;while(now()<deadline){Sleep(100);messages();if(request(L"state")&&result.GetNamedNumber(L"audioQueued",1)<=0){drained=true;break;}}check(L"openingAudioDrained",drained);

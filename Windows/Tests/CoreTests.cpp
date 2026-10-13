@@ -46,5 +46,15 @@ int main() {
     q.reset();
     std::thread producer([&]{ for(int i=0;i<10000;++i) { while(!q.push(c,1)) { if(q.failed()) return; } } });
     producer.join(); check(q.pending()<=5 && q.failed(), "concurrent producer bounded");
+    AudioQueue batches(20);batches.push(a,3);batches.push(b,2);batches.push(c,1);
+    check(batches.peekBatch(4).samples==std::vector<float>({1,2,3}),"batch limit preserves whole packets");auto batch=batches.peekBatch(5);
+    check(batch.samples==std::vector<float>({1,2,3,4,5}),"batch retains exact ordered samples");
+    check(!batches.acknowledgeThrough(batch.id+99)&&batches.pending()==6,"unknown batch acknowledgement cannot erase audio");
+    check(batches.acknowledgeThrough(batch.id)&&batches.pending()==1&&batches.peek().samples==std::vector<float>({6}),"batch acknowledgement removes only accepted prefix");
+    AudioQueue stream;std::vector<float> packet(160,0.25f);bool keepsUp=true;
+    // Six minutes of 10 ms capture packets, forwarded on a 100 ms UI schedule.
+    // This exposes forwarding just one packet per timer tick without wall-clock sleep.
+    for(int tick=0;tick<3600;++tick){for(int i=0;i<10;++i)keepsUp=stream.push(packet.data(),packet.size())&&keepsUp;auto delivery=stream.peekBatch(3200);keepsUp=delivery.samples.size()==1600&&stream.acknowledgeThrough(delivery.id)&&stream.pending()==0&&keepsUp;}
+    check(keepsUp&&!stream.failed(),"scheduled batches sustain the full capture rate");
     std::cout << count << " portable core checks passed\n";
 }
