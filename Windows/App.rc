@@ -1,0 +1,28 @@
+#include <windows.h>
+IDI_FLOWGPT ICON "Assets/FlowGPT.ico"
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION 1,0,0,0
+PRODUCTVERSION 1,0,0,0
+FILEFLAGSMASK 0x3fL
+FILEFLAGS 0
+FILEOS 0x40004L
+FILETYPE 0x1L
+BEGIN
+ BLOCK "StringFileInfo"
+ BEGIN
+  BLOCK "040904b0"
+  BEGIN
+   VALUE "CompanyName", "Rachit Kothadia\0"
+   VALUE "FileDescription", "FlowGPT native dictation for Windows\0"
+   VALUE "FileVersion", "1.0.0-preview\0"
+   VALUE "InternalName", "FlowGPT\0"
+   VALUE "OriginalFilename", "FlowGPT.exe\0"
+   VALUE "ProductName", "FlowGPT\0"
+   VALUE "ProductVersion", "1.0.0-preview\0"
+  END
+ END
+ BLOCK "VarFileInfo"
+ BEGIN
+  VALUE "Translation", 0x409, 1200
+ END
+END

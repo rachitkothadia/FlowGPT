@@ -33,6 +33,7 @@
     <Manifest><AdditionalManifestFiles>app.manifest;%(AdditionalManifestFiles)</AdditionalManifestFiles></Manifest>
   </ItemDefinitionGroup>
   <ItemGroup><ClCompile Include="Main.cpp" /></ItemGroup>
+  <ItemGroup><ResourceCompile Include="App.rc" /></ItemGroup>
   <ItemGroup><ClInclude Include="Core.h" /><ClInclude Include="Platform.h" /><ClInclude Include="Browser.h" /><ClInclude Include="AppController.h" /><ClInclude Include="Hud.h" /></ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.7.250606001" />

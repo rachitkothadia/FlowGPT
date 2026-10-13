@@ -3,6 +3,13 @@
 #include "Hud.h"
 
 namespace flow {
+inline LRESULT CALLBACK probeProc(HWND hwnd,UINT message,WPARAM w,LPARAM l){
+    if(message==WM_CREATE){HWND edit=CreateWindowExW(0,L"EDIT",L"",WS_CHILD|WS_VISIBLE|ES_MULTILINE|WS_BORDER,20,20,450,140,hwnd,reinterpret_cast<HMENU>(42),GetModuleHandleW(nullptr),nullptr);SetFocus(edit);return 0;}
+    if(message==WM_ACTIVATE&&LOWORD(w)!=WA_INACTIVE){SetFocus(GetDlgItem(hwnd,42));return 0;}
+    if(message==WM_DESTROY){PostQuitMessage(0);return 0;}
+    return DefWindowProcW(hwnd,message,w,l);
+}
+inline int insertionProbe(){WNDCLASSW c{};c.lpfnWndProc=probeProc;c.hInstance=GetModuleHandleW(nullptr);c.lpszClassName=L"FlowGPTInsertionProbe";RegisterClassW(&c);HWND w=CreateWindowExW(0,c.lpszClassName,L"FlowGPT insertion test fixture",WS_OVERLAPPEDWINDOW|WS_VISIBLE,100,100,520,240,nullptr,nullptr,c.hInstance,nullptr);ShowWindow(w,SW_SHOW);SetForegroundWindow(w);SetFocus(GetDlgItem(w,42));MSG m{};while(GetMessageW(&m,nullptr,0,0)>0){TranslateMessage(&m);DispatchMessageW(&m);}return 0;}
 inline void messages(){MSG m{};while(PeekMessageW(&m,nullptr,0,0,PM_REMOVE)){TranslateMessage(&m);DispatchMessageW(&m);}}
 inline int nativeTests(){
     auto root=std::filesystem::temp_directory_path()/(L"FlowGPT-NativeTests-"+guid());std::filesystem::create_directories(root);
@@ -14,6 +21,17 @@ inline int nativeTests(){
         for(int i=0;i<105;++i)a.save(L"Fixture "+std::to_wstring(i));check(L"historyBounded",a.entries.size()==100);a.erase(a.entries[0].id);Store c(root/L"store");c.load();check(L"deletePersists",c.entries.size()==99);
         atomicWrite(root/L"store"/L"history.json",L"broken");bool corrupt=false;try{Store d(root/L"store");d.load();}catch(...){corrupt=true;}check(L"corruptionReportedWithoutOverwrite",corrupt&&read(root/L"store"/L"history.json")==L"broken");
         check(L"hotkeyRegistration",RegisterHotKey(nullptr,89,MOD_CONTROL|MOD_ALT|MOD_NOREPEAT,VK_F11)!=FALSE);UnregisterHotKey(nullptr,89);
+        STARTUPINFOW startupInfo{sizeof(startupInfo)};PROCESS_INFORMATION process{};std::wstring command=L"\""+exePath()+L"\" --insertion-probe";
+        bool launched=CreateProcessW(nullptr,command.data(),nullptr,nullptr,FALSE,0,nullptr,nullptr,&startupInfo,&process)!=FALSE;check(L"nativeEditorProbeLaunched",launched);
+        if(launched){
+            double until=now()+8;HWND target{};while(now()<until&&!target){messages();target=FindWindowW(L"FlowGPTInsertionProbe",nullptr);Sleep(30);}check(L"nativeEditorProbeWindow",target!=nullptr);
+            if(target){HWND field=GetDlgItem(target,42);SetForegroundWindow(target);Sleep(250);messages();Insertion insertion;bool captured=insertion.capture();check(L"nativeFocusedFieldCaptured",captured);
+                std::wstring speech=L"हिन्दी English मराठी 🎤\nC++ keyword";bool pasted=captured&&insertion.paste(target,speech);check(L"nativePasteEventsDelivered",pasted);Sleep(750);messages();wchar_t text[512]{};SendMessageW(field,WM_GETTEXT,512,reinterpret_cast<LPARAM>(text));check(L"nativeMixedScriptPasteExact",std::wstring(text)==speech);insertion.restore(target);
+                insertion.capture();SendMessageW(field,EM_SETREADONLY,TRUE,0);check(L"readOnlyTargetRefused",!insertion.valid());SendMessageW(field,EM_SETREADONLY,FALSE,0);
+                insertion.capture();SetForegroundWindow(GetShellWindow());check(L"changedForegroundRefused",!insertion.valid());PostMessageW(target,WM_CLOSE,0,0);
+            }
+            WaitForSingleObject(process.hProcess,3000);CloseHandle(process.hThread);CloseHandle(process.hProcess);
+        }
         Hud hud;hud.update(State::recording,0.7);messages();check(L"popupVisible",IsWindowVisible(hud.handle())!=FALSE);check(L"popupNonactivating",(GetWindowLongPtrW(hud.handle(),GWL_EXSTYLE)&WS_EX_NOACTIVATE)!=0);hud.update(State::finished,0);check(L"popupHidesAfterFinish",IsWindowVisible(hud.handle())==FALSE);
         Browser browser(root/L"browser",true);browser.init();bool response=false;Json result;
         auto request=[&](const std::wstring& action,const std::wstring& expected=L""){

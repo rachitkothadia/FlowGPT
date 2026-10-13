@@ -15,6 +15,7 @@ OutputBaseFilename=FlowGPT-1.0.0-Windows-x64-Setup
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
+SetupIconFile=..\Assets\FlowGPT.ico
 CloseApplications=yes
 RestartApplications=no
 UninstallDisplayIcon={app}\FlowGPT.exe

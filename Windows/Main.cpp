@@ -93,6 +93,7 @@ struct App : ApplicationT<App> {
 }
 
 int WINAPI wWinMain(HINSTANCE,HINSTANCE,PWSTR,int){
+    if(std::wstring(GetCommandLineW()).find(L"--insertion-probe")!=std::wstring::npos){winrt::init_apartment(winrt::apartment_type::single_threaded);return flow::insertionProbe();}
     if(std::wstring(GetCommandLineW()).find(L"--self-test")!=std::wstring::npos){winrt::init_apartment(winrt::apartment_type::single_threaded);return flow::nativeTests();}
     HANDLE instance=CreateMutexW(nullptr,TRUE,L"Local\\FlowGPT.Windows.Instance");if(GetLastError()==ERROR_ALREADY_EXISTS){HWND existing=FindWindowW(nullptr,L"FlowGPT");if(existing){ShowWindow(existing,SW_RESTORE);SetForegroundWindow(existing);}if(instance)CloseHandle(instance);return 0;}
     try{winrt::init_apartment(winrt::apartment_type::single_threaded);Application::Start([](auto&&){winrt::make<App>();});}
