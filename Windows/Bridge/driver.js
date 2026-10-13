@@ -1,7 +1,7 @@
 (() => {
   if(location.origin !== 'https://chatgpt.com' || window.top !== window) return;
   const action = async (action, expected = '') => {
-    if(action === 'fixtureSignal' && location.pathname === '/fixture.html') return {signal:!!window.__fixtureSignal,duration:window.__fixtureDuration||0};
+    if(action === 'fixtureSignal' && location.pathname === '/fixture.html') return {signal:!!window.__fixtureSignal,duration:window.__fixtureDuration||0,energy:window.__fixtureEnergy||0};
     if(action === 'fixtureStorage' && location.pathname === '/fixture.html') {if(expected)localStorage.setItem('flow-fixture',expected);return {value:localStorage.getItem('flow-fixture')||''};}
 
     const visible = e => e && e.getClientRects().length > 0;

@@ -60,7 +60,9 @@ inline int nativeTests(){
         deadline=now()+8;bool transcript=false;while(now()<deadline){Sleep(100);messages();if(request(L"state")&&result.GetNamedString(L"text",L"")==L"नमस्ते English मराठी 🎤"){transcript=true;break;}}check(L"mixedScriptFixtureReturned",transcript);
         check(L"decodedRecordedSignal",request(L"fixtureSignal")&&result.GetNamedBoolean(L"signal",false));
         check(L"openingAudioDurationRetained",result.GetNamedNumber(L"duration",0)>=0.9);
+        const double energy=result.GetNamedNumber(L"energy",0);check(L"decodedOpeningAudioEnergyRetained",energy>=0.036&&energy<=0.054);
         details.Insert(L"syntheticAudioDurationSeconds",JValue::CreateNumberValue(result.GetNamedNumber(L"duration",0)));
+        details.Insert(L"syntheticAudioEnergy",JValue::CreateNumberValue(energy));
         check(L"changedDraftRefused",!request(L"discard",L"different text"));check(L"matchingDraftRemoved",request(L"discard",L"नमस्ते English मराठी 🎤"));check(L"audioCleanup",request(L"endAudio"));
         check(L"browserProfileFixtureWritten",request(L"fixtureStorage",L"Persistent own profile"));browser.reload();deadline=now()+30;while(!browser.ready()&&now()<deadline){messages();Sleep(20);}
         check(L"browserProfileSurvivesReconnect",request(L"fixtureStorage")&&result.GetNamedString(L"value",L"")==L"Persistent own profile");browser.close();

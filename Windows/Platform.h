@@ -190,7 +190,7 @@ public:
     bool valid() {
         if(!automation_||GetForegroundWindow()!=window_)return false;
         ComPtr<IUIAutomationElement> element;if(FAILED(automation_->GetFocusedElement(&element)))return false;
-        BOOL password{},enabled{}; element->get_CurrentIsPassword(&password); element->get_CurrentIsEnabled(&enabled);
+        BOOL password{},enabled{};if(FAILED(element->get_CurrentIsPassword(&password))||FAILED(element->get_CurrentIsEnabled(&enabled)))return false;
         if(password||!enabled||!editable(element.Get()))return false;
         ComPtr<IUIAutomationValuePattern> value; if(SUCCEEDED(element->GetCurrentPatternAs(UIA_ValuePatternId,IID_PPV_ARGS(&value)))){BOOL readonly{};if(SUCCEEDED(value->get_CurrentIsReadOnly(&readonly))&&readonly)return false;}
         return sameTarget(reinterpret_cast<uintptr_t>(window_),reinterpret_cast<uintptr_t>(GetForegroundWindow()),id_,runtimeId(element.Get()));
