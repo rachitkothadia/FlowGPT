@@ -52,6 +52,7 @@ jobs:
             Start-Sleep -Milliseconds 100
             $p.Refresh()
             $mainWindow = [FlowCapture]::FindWindow($null,'FlowGPT')
+            if ($mainWindow -eq 0) { $mainWindow = $p.MainWindowHandle }
             $activated = (Get-Content Windows/out/x64/Release/ui-stage.txt -ErrorAction SilentlyContinue) -eq 'Window activated'
           } while (($mainWindow -eq 0 -or -not $activated) -and -not $p.HasExited -and [DateTime]::UtcNow -lt $captureDeadline)
           if ($activated) { Start-Sleep -Milliseconds 500 }

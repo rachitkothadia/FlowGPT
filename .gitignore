@@ -20,3 +20,5 @@ Windows/out/
 Windows/obj/
 Windows/test-build/
 Windows/Installer/*.exe
+/FlowGPT-*-Windows-*-Setup.exe
+/FlowGPT-*-Windows-*-SHA256SUMS.txt
