@@ -64,6 +64,7 @@ jobs:
             throw "WinUI app exited without its lifecycle report: $($p.ExitCode)"
           }
           $report = Get-Content Windows/out/x64/Release/ui-smoke.json | ConvertFrom-Json
+          Get-Content Windows/out/x64/Release/ui-smoke.json
           if (-not $report.passed) { throw 'WinUI lifecycle fixture failed' }
           if (-not $nativePassed) { throw 'Native fixtures failed; UI lifecycle was checked separately' }
       - name: Build EXE installer

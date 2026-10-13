@@ -28,6 +28,7 @@ struct App : ApplicationT<App,winrt::Microsoft::UI::Xaml::Markup::IXamlMetadataP
     std::unique_ptr<flow::AppController> controller;
     std::wstring page=L"Overview";bool background=false,preview=false,smoke=false;unsigned hotkeyChoice=0;double launched=flow::now();
     std::vector<std::pair<std::wstring,std::wstring>> devices;
+    flow::Json uiChecks;int smokePhase=0;double smokeNext=0;TextBox smokeSearch{nullptr};StackPanel smokeResults{nullptr};
     App(){stage(L"Application constructor");UnhandledException([](auto&&,auto&& e){if(smokeLaunch){flow::atomicWrite(std::filesystem::path(flow::exePath()).parent_path()/L"ui-startup-error.txt",std::wstring(e.Message()));e.Handled(true);Application::Current().Exit();}});}
     auto provider(){if(!metadata)metadata=winrt::Microsoft::UI::Xaml::XamlTypeInfo::XamlControlsXamlMetaDataProvider();return metadata;}
     winrt::Microsoft::UI::Xaml::Markup::IXamlType GetXamlType(winrt::Windows::UI::Xaml::Interop::TypeName const& type){return provider().GetXamlType(type);}
@@ -42,7 +43,9 @@ struct App : ApplicationT<App,winrt::Microsoft::UI::Xaml::Markup::IXamlMetadataP
         std::wstring args=GetCommandLineW();background=args.find(L"--background")!=std::wstring::npos;smoke=args.find(L"--ui-smoke")!=std::wstring::npos;preview=smoke||args.find(L"--design-preview")!=std::wstring::npos;
         window=Window();window.Title(L"FlowGPT");window.as<IWindowNative>()->get_WindowHandle(&hwnd);SetWindowSubclass(hwnd,procedure,1,reinterpret_cast<DWORD_PTR>(this));
         icon=flow::waveformIcon();SendMessageW(hwnd,WM_SETICON,ICON_SMALL,reinterpret_cast<LPARAM>(icon));SendMessageW(hwnd,WM_SETICON,ICON_BIG,reinterpret_cast<LPARAM>(icon));
-        SetWindowPos(hwnd,nullptr,0,0,980,760,SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);
+        MONITORINFO monitor{sizeof(monitor)};GetMonitorInfoW(MonitorFromWindow(hwnd,MONITOR_DEFAULTTONEAREST),&monitor);UINT dpi=GetDpiForWindow(hwnd);
+        int width=std::min(MulDiv(980,dpi,96),int(monitor.rcWork.right-monitor.rcWork.left)-40),height=std::min(MulDiv(760,dpi,96),int(monitor.rcWork.bottom-monitor.rcWork.top)-40);
+        SetWindowPos(hwnd,nullptr,monitor.rcWork.left+(monitor.rcWork.right-monitor.rcWork.left-width)/2,monitor.rcWork.top+(monitor.rcWork.bottom-monitor.rcWork.top-height)/2,width,height,SWP_NOZORDER|SWP_NOACTIVATE);
         navigation=NavigationView();navigation.PaneDisplayMode(NavigationViewPaneDisplayMode::Left);navigation.OpenPaneLength(220);navigation.IsSettingsVisible(false);navigation.IsBackButtonVisible(NavigationViewBackButtonVisible::Collapsed);
         StackPanel brand;brand.Orientation(Orientation::Horizontal);brand.Spacing(12);brand.Margin({20,24,0,20});
         auto waveform=winrt::Microsoft::UI::Xaml::Markup::XamlReader::Load(L"<Path xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation' Data='M3,12 L3,18 M9,7 L9,23 M15,3 L15,27 M21,7 L21,23 M27,12 L27,18' Stroke='#548B78' StrokeThickness='3' StrokeStartLineCap='Round' StrokeEndLineCap='Round' Width='30' Height='30'/> ").as<UIElement>();
@@ -60,16 +63,19 @@ struct App : ApplicationT<App,winrt::Microsoft::UI::Xaml::Markup::IXamlMetadataP
     }
     void registerHotkey(){UnregisterHotKey(hwnd,1);UINT key=hotkeyChoice==0?VK_SPACE:hotkeyChoice==1?'D':VK_F8;UINT modifiers=hotkeyChoice==2?MOD_CONTROL:MOD_CONTROL|MOD_ALT;controller->hotkeyReady=RegisterHotKey(hwnd,1,modifiers|MOD_NOREPEAT,key)!=FALSE;}
     void verifyUI(){
-        flow::Json checks;auto check=[&](const wchar_t* name,bool good){checks.Insert(name,flow::JValue::CreateBooleanValue(good));};
+        if(flow::now()<smokeNext)return;auto check=[&](const wchar_t* name,bool good){uiChecks.Insert(name,flow::JValue::CreateBooleanValue(good));};
+        if(smokePhase==0){
         check(background?L"startupWindowHidden":L"nativeWinUIWindowVisible",background?!IsWindowVisible(hwnd):IsWindowVisible(hwnd)!=FALSE);
         check(L"historyFixtureLoaded",controller->store.entries.size()==1);check(L"shortcutRegisteredInApp",controller->hotkeyReady);
         navigation.SelectedItem(navigation.MenuItems().GetAt(1));check(L"historyPageRenders",page==L"History"&&content.Children().Size()>4);
-        auto search=content.Children().GetAt(2).as<TextBox>();auto results=content.Children().GetAt(3).as<StackPanel>();search.Text(L"PROJECT");check(L"historySearchIgnoresEnglishCase",results.Children().Size()==1&&results.Children().GetAt(0).try_as<Border>()!=nullptr);
-        search.Text(L"not in this transcript");check(L"historySearchEmptyState",results.Children().Size()==1&&results.Children().GetAt(0).try_as<TextBlock>()!=nullptr);
+        smokeSearch=content.Children().GetAt(2).as<TextBox>();smokeResults=content.Children().GetAt(3).as<StackPanel>();smokeSearch.Text(L"PROJECT");smokePhase=1;smokeNext=flow::now()+0.2;return;
+        }
+        if(smokePhase==1){check(L"historySearchIgnoresEnglishCase",smokeResults.Children().Size()==1&&smokeResults.Children().GetAt(0).try_as<Border>()!=nullptr);smokeSearch.Text(L"not in this transcript");smokePhase=2;smokeNext=flow::now()+0.2;return;}
+        check(L"historySearchEmptyState",smokeResults.Children().Size()==1&&smokeResults.Children().GetAt(0).try_as<TextBlock>()!=nullptr);
         navigation.SelectedItem(navigation.MenuItems().GetAt(2));check(L"settingsPageRenders",page==L"Settings"&&content.Children().Size()>10);
         navigation.RequestedTheme(ElementTheme::Dark);check(L"darkThemeApplied",navigation.RequestedTheme()==ElementTheme::Dark);navigation.RequestedTheme(ElementTheme::Light);check(L"lightThemeApplied",navigation.RequestedTheme()==ElementTheme::Light);
         navigation.SelectedItem(navigation.MenuItems().GetAt(0));SendMessageW(hwnd,WM_CLOSE,0,0);check(L"closeKeepsTrayResident",IsWindow(hwnd)&&!IsWindowVisible(hwnd));show();check(L"hiddenWindowReopens",IsWindowVisible(hwnd)!=FALSE);
-        flow::Json report;report.Insert(L"checks",checks);bool pass=true;for(auto p:checks)pass=pass&&p.Value().GetBoolean();report.Insert(L"passed",flow::JValue::CreateBooleanValue(pass));flow::atomicWrite(std::filesystem::path(flow::exePath()).parent_path()/L"ui-smoke.json",std::wstring(report.Stringify()));quit();
+        flow::Json report;report.Insert(L"checks",uiChecks);bool pass=true;for(auto p:uiChecks)pass=pass&&p.Value().GetBoolean();report.Insert(L"passed",flow::JValue::CreateBooleanValue(pass));flow::atomicWrite(std::filesystem::path(flow::exePath()).parent_path()/L"ui-smoke.json",std::wstring(report.Stringify()));quit();
     }
     static LRESULT CALLBACK procedure(HWND h,UINT m,WPARAM w,LPARAM l,UINT_PTR,DWORD_PTR data){auto self=reinterpret_cast<App*>(data);if(!self)return DefSubclassProc(h,m,w,l);
         if(m==WM_GETMINMAXINFO){auto limits=reinterpret_cast<MINMAXINFO*>(l);UINT dpi=GetDpiForWindow(h);limits->ptMinTrackSize={MulDiv(760,dpi,96),MulDiv(580,dpi,96)};return 0;}
@@ -100,7 +106,7 @@ struct App : ApplicationT<App,winrt::Microsoft::UI::Xaml::Markup::IXamlMetadataP
             content.Children().Append(button(L"Clear history…",[this]{confirmClear();}));
         }else settings();
     }
-    void addEntry(const flow::Entry& e,StackPanel list=nullptr){if(!list)list=content;Border card;card.CornerRadius({12});card.Padding({18,14,18,14});StackPanel inner;inner.Spacing(8);inner.Children().Append(label(e.date,12));TextBox text;text.Text(e.text);text.IsReadOnly(true);text.AcceptsReturn(true);text.TextWrapping(TextWrapping::Wrap);inner.Children().Append(text);StackPanel actions;actions.Orientation(Orientation::Horizontal);actions.Spacing(8);actions.Children().Append(button(L"Copy",[this,e]{copy(e.text);}));actions.Children().Append(button(L"Delete",[this,e]{try{controller->store.erase(e.id);render();}catch(...){controller->message=L"History deletion failed; original data retained";renderStatus();}}));inner.Children().Append(actions);card.Child(inner);list.Children().Append(card);}
+    void addEntry(const flow::Entry& e,StackPanel list=nullptr){if(!list)list=content;Border card;card.CornerRadius({12});card.Padding({18,14,18,14});StackPanel inner;inner.Spacing(8);inner.Children().Append(label(e.date,12));TextBox text;text.Text(e.text);text.IsReadOnly(true);text.AcceptsReturn(true);text.TextWrapping(TextWrapping::Wrap);text.MinHeight(96);text.MaxHeight(280);text.VerticalContentAlignment(VerticalAlignment::Top);ScrollViewer::SetVerticalScrollBarVisibility(text,ScrollBarVisibility::Auto);inner.Children().Append(text);StackPanel actions;actions.Orientation(Orientation::Horizontal);actions.Spacing(8);actions.Children().Append(button(L"Copy",[this,e]{copy(e.text);}));actions.Children().Append(button(L"Delete",[this,e]{try{controller->store.erase(e.id);render();}catch(...){controller->message=L"History deletion failed; original data retained";renderStatus();}}));inner.Children().Append(actions);card.Child(inner);list.Children().Append(card);}
     void populateHistory(StackPanel list,const std::wstring& query){list.Children().Clear();for(auto& e:controller->store.entries)if(query.empty()||FindNLSStringEx(LOCALE_NAME_INVARIANT,FIND_FROMSTART|NORM_IGNORECASE,e.text.c_str(),int(e.text.size()),query.c_str(),int(query.size()),nullptr,nullptr,nullptr,0)>=0)addEntry(e,list);if(!list.Children().Size())list.Children().Append(label(L"No matching dictations yet."));}
     fire_and_forget confirmClear(){ContentDialog dialog;dialog.XamlRoot(content.XamlRoot());dialog.Title(box_value(L"Clear local history?"));dialog.Content(box_value(L"This deletes your saved transcripts on this Windows account."));dialog.PrimaryButtonText(L"Clear history");dialog.CloseButtonText(L"Cancel");dialog.DefaultButton(ContentDialogButton::Close);auto answer=co_await dialog.ShowAsync();if(answer==ContentDialogResult::Primary){try{controller->store.persist({});render();}catch(...){controller->message=L"History could not be cleared";renderStatus();}}}
     void settings(){
