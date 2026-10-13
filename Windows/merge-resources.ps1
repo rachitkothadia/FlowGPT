@@ -15,6 +15,11 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Could not create resource configuration' }
     [xml]$xml = Get-Content $configuration
     foreach ($node in @($xml.SelectNodes('//packaging'))) { $null = $node.ParentNode.RemoveChild($node) }
+    # Framework PRIs already index their assets. Indexing the loose asset files
+    # again creates duplicate NoiseAsset entries with different resource values.
+    foreach ($node in @($xml.SelectNodes('//indexer-config'))) {
+        if ($node.GetAttribute('type') -ne 'PRI') { $null = $node.ParentNode.RemoveChild($node) }
+    }
     $xml.Save($configuration)
     Remove-Item "$outputPath/resources.pri" -ErrorAction SilentlyContinue
     & $makepri.FullName new /pr $outputPath /cf $configuration /of "$outputPath/resources.pri" /o
