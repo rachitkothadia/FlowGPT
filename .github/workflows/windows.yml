@@ -46,10 +46,16 @@ jobs:
           Add-Type -AssemblyName System.Drawing
           Add-Type 'using System; using System.Runtime.InteropServices; public static class FlowCapture { [StructLayout(LayoutKind.Sequential)] public struct Rect { public int Left,Top,Right,Bottom; } [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out Rect r); [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern IntPtr FindWindow(string c, string title); }'
           $p = Start-Process $app -ArgumentList '--ui-smoke' -PassThru
-          Start-Sleep -Seconds 4
-          $p.Refresh()
+          $captureDeadline = [DateTime]::UtcNow.AddSeconds(20)
+          $mainWindow = [IntPtr]::Zero
+          do {
+            Start-Sleep -Milliseconds 100
+            $p.Refresh()
+            $mainWindow = [FlowCapture]::FindWindow($null,'FlowGPT')
+            $activated = (Get-Content Windows/out/x64/Release/ui-stage.txt -ErrorAction SilentlyContinue) -eq 'Window activated'
+          } while (($mainWindow -eq 0 -or -not $activated) -and -not $p.HasExited -and [DateTime]::UtcNow -lt $captureDeadline)
+          if ($activated) { Start-Sleep -Milliseconds 500 }
           $rect = New-Object FlowCapture+Rect
-          $mainWindow = [FlowCapture]::FindWindow($null,'FlowGPT')
           if ($mainWindow -ne 0 -and [FlowCapture]::GetWindowRect($mainWindow,[ref]$rect)) {
             $bitmap = New-Object System.Drawing.Bitmap ($rect.Right-$rect.Left),($rect.Bottom-$rect.Top)
             $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
