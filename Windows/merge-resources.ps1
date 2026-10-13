@@ -10,19 +10,19 @@ if (-not (Get-ChildItem $outputPath -Filter '*.pri' -Recurse | Where-Object Name
 # A programmatic unpackaged app has no App.xaml compiler pass to merge the
 # framework PRI. Merge it explicitly so the runtime can resolve theme resources.
 $configuration = Join-Path $env:TEMP ([guid]::NewGuid().ToString() + '.priconfig.xml')
+$indexRoot = Join-Path $env:TEMP ([guid]::NewGuid().ToString() + '.framework-resources')
 try {
+    New-Item $indexRoot -ItemType Directory | Out-Null
+    Get-ChildItem $outputPath -Filter '*.pri' -Recurse | Where-Object Name -ne 'resources.pri' | ForEach-Object { Copy-Item $_.FullName $indexRoot }
     & $makepri.FullName createconfig /cf $configuration /dq en-US /o
     if ($LASTEXITCODE -ne 0) { throw 'Could not create resource configuration' }
     [xml]$xml = Get-Content $configuration
     foreach ($node in @($xml.SelectNodes('//packaging'))) { $null = $node.ParentNode.RemoveChild($node) }
-    # Framework PRIs already index their assets. Indexing the loose asset files
-    # again creates duplicate NoiseAsset entries with different resource values.
-    foreach ($node in @($xml.SelectNodes('//indexer-config'))) {
-        if ($node.GetAttribute('type') -ne 'PRI') { $null = $node.ParentNode.RemoveChild($node) }
-    }
+    # Keep the folder indexer that discovers the PRI files, but stage only those
+    # PRIs so loose assets cannot be indexed a second time under conflicting paths.
     $xml.Save($configuration)
     Remove-Item "$outputPath/resources.pri" -ErrorAction SilentlyContinue
-    & $makepri.FullName new /pr $outputPath /cf $configuration /of "$outputPath/resources.pri" /o
+    & $makepri.FullName new /pr $indexRoot /cf $configuration /of "$outputPath/resources.pri" /o
     if ($LASTEXITCODE -ne 0) { throw 'Could not merge WinUI resources' }
     if (-not (Test-Path "$outputPath/resources.pri")) { throw 'Merged resource index was not created' }
-} finally { Remove-Item $configuration -ErrorAction SilentlyContinue }
+} finally { Remove-Item $configuration -ErrorAction SilentlyContinue;Remove-Item $indexRoot -Recurse -Force -ErrorAction SilentlyContinue }
