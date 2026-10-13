@@ -33,12 +33,14 @@ struct App : ApplicationT<App> {
         icon=flow::waveformIcon();SendMessageW(hwnd,WM_SETICON,ICON_SMALL,reinterpret_cast<LPARAM>(icon));SendMessageW(hwnd,WM_SETICON,ICON_BIG,reinterpret_cast<LPARAM>(icon));
         SetWindowPos(hwnd,nullptr,0,0,980,760,SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);
         navigation=NavigationView();navigation.PaneDisplayMode(NavigationViewPaneDisplayMode::Left);navigation.OpenPaneLength(220);navigation.IsSettingsVisible(false);navigation.IsBackButtonVisible(NavigationViewBackButtonVisible::Collapsed);
-        auto brand=label(L"▥  FlowGPT",23);brand.Foreground(green());brand.Margin({20,24,0,20});navigation.PaneHeader(brand);
+        StackPanel brand;brand.Orientation(Orientation::Horizontal);brand.Spacing(12);brand.Margin({20,24,0,20});
+        auto waveform=winrt::Microsoft::UI::Xaml::Markup::XamlReader::Load(L"<Path xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation' Data='M3,12 L3,18 M9,7 L9,23 M15,3 L15,27 M21,7 L21,23 M27,12 L27,18' Stroke='#548B78' StrokeThickness='3' StrokeStartLineCap='Round' StrokeEndLineCap='Round' Width='30' Height='30'/> ").as<UIElement>();
+        brand.Children().Append(waveform);brand.Children().Append(label(L"FlowGPT",23));navigation.PaneHeader(brand);
         for(auto name:{L"Overview",L"History",L"Settings"}){NavigationViewItem item;item.Content(box_value(name));item.Tag(box_value(name));SymbolIcon image;image.Symbol(name==std::wstring(L"Overview")?Symbol::Microphone:name==std::wstring(L"History")?Symbol::Clock:Symbol::Setting);item.Icon(image);navigation.MenuItems().Append(item);}
         navigation.SelectionChanged([this](auto&&,NavigationViewSelectionChangedEventArgs const& e){if(e.SelectedItem()){page=unbox_value<hstring>(e.SelectedItem().as<NavigationViewItem>().Tag());render();}});
         navigation.SelectedItem(navigation.MenuItems().GetAt(0));ScrollViewer scroll;content=StackPanel();content.Padding({32,28,32,28});content.Spacing(18);scroll.Content(content);navigation.Content(scroll);window.Content(navigation);
         try{window.SystemBackdrop(MicaBackdrop());}catch(...){/* Native theme is the fallback. */}
-        controller=std::make_unique<flow::AppController>(hwnd,preview);controller->changed=[this]{renderStatus();hud.update(controller->session.state,controller->microphone.audio.level());};hud.finish=[this]{controller->finish();};
+        controller=std::make_unique<flow::AppController>(hwnd,preview);controller->changed=[this]{render();hud.update(controller->session.state,controller->microphone.audio.level());};hud.finish=[this]{controller->finish();};
         hotkeyChoice=unsigned(controller->store.settings.GetNamedNumber(L"shortcut",0));if(hotkeyChoice>2)hotkeyChoice=0;registerHotkey();
         auto appearance=controller->store.settings.GetNamedString(L"appearance",L"System");navigation.RequestedTheme(appearance==L"Dark"?ElementTheme::Dark:appearance==L"Light"?ElementTheme::Light:ElementTheme::Default);
         tray.cbSize=sizeof(tray);tray.hWnd=hwnd;tray.uID=1;tray.uFlags=NIF_ICON|NIF_MESSAGE|NIF_TIP;tray.uCallbackMessage=TrayMessage;tray.hIcon=icon;wcscpy_s(tray.szTip,L"FlowGPT · Ctrl + Alt + Space");Shell_NotifyIconW(NIM_ADD,&tray);tray.uVersion=NOTIFYICON_VERSION_4;Shell_NotifyIconW(NIM_SETVERSION,&tray);
@@ -47,6 +49,7 @@ struct App : ApplicationT<App> {
     }
     void registerHotkey(){UnregisterHotKey(hwnd,1);UINT key=hotkeyChoice==0?VK_SPACE:hotkeyChoice==1?'D':VK_F8;UINT modifiers=hotkeyChoice==2?MOD_CONTROL:MOD_CONTROL|MOD_ALT;controller->hotkeyReady=RegisterHotKey(hwnd,1,modifiers|MOD_NOREPEAT,key)!=FALSE;}
     static LRESULT CALLBACK procedure(HWND h,UINT m,WPARAM w,LPARAM l,UINT_PTR,DWORD_PTR data){auto self=reinterpret_cast<App*>(data);if(!self)return DefSubclassProc(h,m,w,l);
+        if(m==WM_GETMINMAXINFO){auto limits=reinterpret_cast<MINMAXINFO*>(l);UINT dpi=GetDpiForWindow(h);limits->ptMinTrackSize={MulDiv(760,dpi,96),MulDiv(580,dpi,96)};return 0;}
         if(m==WM_CLOSE){ShowWindow(h,SW_HIDE);return 0;}
         if(m==WM_HOTKEY&&self->controller){self->controller->begin();return 0;}
         if(m==WM_POWERBROADCAST&&self->controller&&w==PBT_APMSUSPEND){if(flow::busy(self->controller->session.state))self->controller->cancel();return TRUE;}
