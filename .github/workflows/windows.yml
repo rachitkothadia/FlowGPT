@@ -23,8 +23,8 @@ jobs:
           $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.Component.MSBuild -property installationPath
           & "$vs\MSBuild\Current\Bin\MSBuild.exe" Windows/FlowGPT.vcxproj /restore /p:Configuration=Release /p:Platform=x64 /m /verbosity:minimal
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $crt = Get-ChildItem "$vs\VC\Redist\MSVC" -Directory | Sort-Object Name -Descending | Select-Object -First 1
-          $crtFolder = Get-ChildItem "$($crt.FullName)\x64" -Directory | Where-Object Name -like 'Microsoft.VC*.CRT' | Sort-Object Name -Descending | Select-Object -First 1
+          $crtFolder = Get-ChildItem "$vs\VC\Redist\MSVC" -Directory -Recurse | Where-Object FullName -match '\\x64\\Microsoft\.VC\d+\.CRT$' | Sort-Object FullName -Descending | Select-Object -First 1
+          if (-not $crtFolder) { throw 'Native x64 CRT redistributable not found' }
           Copy-Item "$($crtFolder.FullName)\*.dll" Windows/out/x64/Release/
       - name: Prepare verified WebView2 Runtime
         shell: pwsh
