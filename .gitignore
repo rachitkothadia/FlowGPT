@@ -16,3 +16,7 @@ graphify-out/
 *.provisionprofile
 *.xcuserstate
 DerivedData/
+Windows/out/
+Windows/obj/
+Windows/test-build/
+Windows/Installer/*.exe

@@ -1,0 +1,44 @@
+name: Windows app and installer
+on:
+  push:
+    branches: [main, 'codex/windows-*']
+    paths: ['Windows/**', '.github/workflows/windows.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - name: Portable policy tests
+        run: |
+          cmake -S Windows -B Windows/test-build
+          cmake --build Windows/test-build --config Release
+          ctest --test-dir Windows/test-build -C Release --output-on-failure
+      - name: Build native WinUI app
+        shell: pwsh
+        run: |
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.Component.MSBuild -property installationPath
+          & "$vs\MSBuild\Current\Bin\MSBuild.exe" Windows/FlowGPT.vcxproj /restore /p:Configuration=Release /p:Platform=x64 /m /verbosity:minimal
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $crt = Get-ChildItem "$vs\VC\Redist\MSVC" -Directory | Sort-Object Name -Descending | Select-Object -First 1
+          Copy-Item "$($crt.FullName)\x64\Microsoft.VC143.CRT\*.dll" Windows/out/x64/Release/
+      - name: Build EXE installer
+        shell: pwsh
+        run: |
+          Invoke-WebRequest 'https://go.microsoft.com/fwlink/p/?LinkId=2124703' -OutFile Windows/Installer/WebView2Bootstrapper.exe
+          $signature = Get-AuthenticodeSignature Windows/Installer/WebView2Bootstrapper.exe
+          if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'Microsoft') { throw 'WebView2 redistributable signature invalid' }
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" Windows/Installer/FlowGPT.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Get-FileHash release/windows/*.exe -Algorithm SHA256 | Format-List | Out-File release/windows/SHA256SUMS.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: FlowGPT-Windows-x64
+          path: |
+            release/windows/
+            Windows/out/x64/Release/
+          if-no-files-found: warn

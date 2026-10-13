@@ -1,0 +1,49 @@
+[Setup]
+AppId={{C0DD7357-60AA-4124-B232-912E1B8F94B4}
+AppName=FlowGPT
+AppVersion=1.0.0
+AppPublisher=Rachit Kothadia
+AppPublisherURL=https://github.com/rachitkothadia/FlowGPT
+DefaultDirName={localappdata}\Programs\FlowGPT
+DefaultGroupName=FlowGPT
+PrivilegesRequired=lowest
+ArchitecturesAllowed=x64compatible
+ArchitecturesInstallIn64BitMode=x64compatible
+MinVersion=10.0.22000
+OutputDir=..\..\..\release\windows
+OutputBaseFilename=FlowGPT-1.0.0-Windows-x64-Setup
+Compression=lzma2
+SolidCompression=yes
+WizardStyle=modern
+CloseApplications=yes
+RestartApplications=no
+UninstallDisplayIcon={app}\FlowGPT.exe
+LicenseFile=..\..\LICENSE
+
+[Files]
+Source: "..\out\x64\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "WebView2Bootstrapper.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall
+Source: "..\..\LICENSE"; DestDir: "{app}"
+
+[Icons]
+Name: "{group}\FlowGPT"; Filename: "{app}\FlowGPT.exe"
+Name: "{autodesktop}\FlowGPT"; Filename: "{app}\FlowGPT.exe"; Tasks: desktopicon
+
+[Tasks]
+Name: desktopicon; Description: "Create a desktop shortcut"; Flags: unchecked
+Name: startup; Description: "Start FlowGPT in the tray when I sign in"; Flags: unchecked
+
+[Registry]
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "FlowGPT"; ValueData: """{app}\FlowGPT.exe"" --background"; Tasks: startup; Flags: uninsdeletevalue
+
+[Run]
+Filename: "{tmp}\WebView2Bootstrapper.exe"; Parameters: "/silent /install"; StatusMsg: "Checking Microsoft Edge WebView2 Runtime…"; Flags: waituntilterminated
+Filename: "{app}\FlowGPT.exe"; Description: "Open FlowGPT"; Flags: nowait postinstall skipifsilent
+
+[Code]
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+begin
+  if CurUninstallStep = usPostUninstall then
+    if MsgBox('Also delete local FlowGPT transcripts, settings, and ChatGPT sign-in data? Choose No to keep them for reinstalling.', mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES then
+      DelTree(ExpandConstant('{localappdata}\FlowGPT'), True, True, True);
+end;
