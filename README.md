@@ -12,7 +12,7 @@ Native macOS dictation that brings ChatGPT's Dictate recorder to your focused te
 [![Build & test](https://github.com/rachitkothadia/FlowGPT/actions/workflows/ci.yml/badge.svg)](https://github.com/rachitkothadia/FlowGPT/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-548B78)](LICENSE)
 
-[Get started](#get-started) · [How it works](#how-it-works) · [Build from source](#build-from-source) · [Contribute](CONTRIBUTING.md)
+[Download DMG](https://github.com/rachitkothadia/FlowGPT/releases/download/v1.0.3/FlowGpt-1.0.3-arm64.dmg) · [Get started](#get-started) · [How it works](#how-it-works) · [Build from source](#build-from-source) · [Contribute](CONTRIBUTING.md)
 
 <img src="Docs/assets/overview.png" alt="FlowGPT dark overview showing the Fn + Space shortcut and example history" width="900" />
 
@@ -42,13 +42,32 @@ Close the settings window and keep working. FlowGPT stays in the menu bar; its c
 
 **Requirements:** macOS 14+, an Apple Silicon Mac for the current local DMG, a ChatGPT account with Dictate available, and an internet connection.
 
-1. Build from source below, or use a DMG provided by the maintainer. No notarized public binary is currently published by this repository.
+1. [Download FlowGpt-1.0.3-arm64.dmg](https://github.com/rachitkothadia/FlowGPT/releases/download/v1.0.3/FlowGpt-1.0.3-arm64.dmg) from the [1.0.3 preview release](https://github.com/rachitkothadia/FlowGPT/releases/tag/v1.0.3). This installer supports Apple Silicon; it is ad hoc signed and **not notarized**.
 2. Drag **FlowGpt.app** into **Applications** and open it.
 3. Choose **Continue with ChatGPT** and sign in yourself in the connection window.
 4. Grant **Microphone**, **Accessibility**, and **Input Monitoring** to the installed app.
 5. Put your cursor in an editable field. Press **Fn + Space** to record and again to finish.
 
 Use **Test dictation here** first if you want a local preview without inserting into another app. When an editor cannot accept or confirm insertion, the transcript remains in History.
+
+### If macOS blocks the downloaded app
+
+After copying **FlowGpt.app into Applications**, try opening it and check **System Settings → Privacy & Security → Open Anyway**. If that option is unavailable, and you trust the copy downloaded from this repository, run this once in Terminal:
+
+```sh
+xattr -dr com.apple.quarantine "/Applications/FlowGpt.app" && open "/Applications/FlowGpt.app"
+```
+
+This removes the download quarantine flag only from FlowGpt and opens it. It bypasses the quarantine check for this copy; it does not notarize the app or disable Gatekeeper globally. The DMG does not run this command automatically. Microphone, Accessibility, and Input Monitoring still require your approval afterward.
+
+The release includes a checksum file. Before installing, you can compare the downloaded DMG with it:
+
+```sh
+cd ~/Downloads
+shasum -a 256 -c SHA256SUMS.txt
+```
+
+Download [SHA256SUMS.txt](https://github.com/rachitkothadia/FlowGPT/releases/download/v1.0.3/SHA256SUMS.txt) into the same folder as the DMG. Expected SHA-256 for this exact installer: `c29f6f95bed5871fcb2a20a010c20d7550926429f524a8295b25a61ba522e489`.
 
 <details>
 <summary><strong>Connection, permission, and installation troubleshooting</strong></summary>
