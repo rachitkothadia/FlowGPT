@@ -1,0 +1,32 @@
+name: Build & test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  macos:
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Toolchain
+        run: swift --version
+      - name: Test native policies
+        run: Scripts/test.sh
+      - name: Build release with warnings as errors
+        run: swift build -c release -Xswiftc -warnings-as-errors
+      - name: Validate packaging scripts
+        run: |
+          zsh -n Scripts/build-flowgpt.sh
+          zsh -n Scripts/package-flowgpt.sh
+          zsh -n Scripts/build-distribution.sh

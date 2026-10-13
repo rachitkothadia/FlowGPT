@@ -1,0 +1,29 @@
+FLOW 4.0.2 | APPLE SILICON | macOS 14+
+
+Drag Flow.app to Applications and launch it.
+Your saved local API key, transcript history and ordinary settings remain.
+The first 4.0 launch selects Automatic spoken language for mixed speech.
+Existing recognition speed settings stay available; Accurate uses full Whisper v3.
+
+The pipeline is Whisper transcription followed by GPT-OSS formatting.
+English words use English script; Hindi/Marathi use Devanagari.
+Punctuation, bullets, numbered lists, arrows, steps and quotes are prompt-driven.
+Numbering continues through every supplied item, with no fixed item-count cap.
+Finite API input/output limits still apply; literal infinite output is impossible.
+Local NLP, phrase prediction, learned corrections and text-rewrite validators
+are removed. Old learning files remain unused. No alternate text model is used.
+Text Processing: Format with GPT-OSS on, Clean Dictation mode.
+Turning formatting off, or selecting Verbatim, returns raw recognition.
+API quota failures may deliver the raw transcript without formatting.
+
+Place your cursor in another app and press Fn + Space; press again to finish.
+The compact glass popup shows a spinner while processing and inserting,
+then closes after delivery. Browser paste restores your clipboard.
+Fn + Space in Flow Settings shows the transcript locally instead.
+For lectures, enable Continuous recording and choose your audio source.
+Recordings are saved in ~/Library/Application Support/Flow/Recordings.
+
+Accessibility, Input Monitoring and capture services are retained.
+Packaging does not change permissions or install the app.
+This local build is ad hoc signed and not notarized; macOS may reassess grants.
+Recognition and prompt-driven editing are not guaranteed perfect.

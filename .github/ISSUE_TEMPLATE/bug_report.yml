@@ -1,0 +1,29 @@
+name: Bug report
+description: Report a reproducible FlowGPT problem without private data.
+body:
+  - type: input
+    id: version
+    attributes:
+      label: FlowGPT version
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: macOS version and processor
+      placeholder: macOS 26, Apple M4
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps and expected result
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result and redacted evidence
+      description: Do not include credentials, account sessions, or private transcripts.
+    validations:
+      required: true

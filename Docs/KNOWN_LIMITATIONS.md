@@ -1,0 +1,10 @@
+# Flow 4.0 limitations
+
+- Whisper can still mishear mixed-language speech, accents, names and technical terms. GPT-OSS only sees the transcript, not the audio. It can repair a clear mistake or introduce an incorrect edit; no local linguistic validator remains. Neither API success nor software tests establish perfect recognition.
+- English/native script selection, punctuation, lists and quotations are system-prompt behavior. They are not guaranteed deterministic output. Other-language recognition depends on Whisper coverage and accuracy. Several scheduled Indian languages lack dedicated recognition language tokens.
+- Only GPT-OSS formats text. Groq quotas still apply. Formatting failures deliver the full raw recognition result with a notice, potentially without punctuation or lists. Recognition failure cannot produce a transcript.
+- Existing capture, continuous archive, shortcut, popup and insertion services are retained. Real multi-hour hardware recordings and every input field are not newly validated by this pipeline change. Older validation reports explicitly identify earlier live browser checks and the blocked Codex live check.
+- Continuous recordings use disk space, survive as private local files and remain until deleted. Sleep/device failures interrupt capture; unfinished crash-tail audio is not automatically repaired. There is no speaker diarization or automatic shouting-based uppercase.
+- Clipboard paste restores readable items/formats, while preserving newer user copies. Secure, read-only, changed or unidentifiable destinations are refused. Some editors remain incompatible, and attempted insertion is not automatically replayed.
+- No local learning or prediction database is opened by 4.0. Existing historical learning files remain unused. Keys, saved audio and opt-in transcript history are unencrypted with private filesystem permissions.
+- The package is ad hoc signed, without Developer ID/notarization. macOS can reassess grants when app signing changes; packaging never resets them. Existing Accessibility and Input Monitoring service code is retained.
