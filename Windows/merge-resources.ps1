@@ -4,8 +4,8 @@ $outputPath = (Resolve-Path $OutputDirectory).Path
 $makepri = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Filter makepri.exe -Recurse |
     Where-Object FullName -match '\\x64\\makepri\.exe$' | Sort-Object FullName -Descending | Select-Object -First 1
 if (-not $makepri) { throw 'Windows SDK resource indexer not found' }
-if (-not (Test-Path "$outputPath/Microsoft.UI.Xaml.pri")) {
-    throw 'Self-contained WinUI theme resources are missing from the output'
+if (-not (Get-ChildItem $outputPath -Filter '*.pri' -Recurse | Where-Object Name -ne 'resources.pri')) {
+    throw 'Self-contained framework resource indexes are missing from the output'
 }
 # A programmatic unpackaged app has no App.xaml compiler pass to merge the
 # framework PRI. Merge it explicitly so the runtime can resolve theme resources.

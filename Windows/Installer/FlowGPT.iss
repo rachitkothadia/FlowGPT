@@ -22,7 +22,7 @@ UninstallDisplayIcon={app}\FlowGPT.exe
 LicenseFile=..\..\LICENSE
 
 [Files]
-Source: "..\out\x64\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\out\x64\Release\*"; DestDir: "{app}"; Excludes: "*.pdb,native-tests.json,ui-*.json,ui-*.txt,ui-*.png"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "WebView2Bootstrapper.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall
 Source: "..\..\LICENSE"; DestDir: "{app}"
 
@@ -32,7 +32,7 @@ Name: "{autodesktop}\FlowGPT"; Filename: "{app}\FlowGPT.exe"; Tasks: desktopicon
 
 [Tasks]
 Name: desktopicon; Description: "Create a desktop shortcut"; Flags: unchecked
-Name: startup; Description: "Start FlowGPT in the tray when I sign in"; Flags: unchecked
+Name: startup; Description: "Start FlowGPT in the tray when I sign in"
 
 [Registry]
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "FlowGPT"; ValueData: """{app}\FlowGPT.exe"" --background"; Tasks: startup; Flags: uninsdeletevalue

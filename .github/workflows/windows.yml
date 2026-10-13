@@ -75,12 +75,14 @@ jobs:
         run: |
           $installer = Get-ChildItem release/windows/*Setup.exe | Select-Object -First 1
           $destination = Join-Path $env:RUNNER_TEMP 'FlowGPT-installed-fixture'
-          $p = Start-Process $installer.FullName -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DIR=`"$destination`"" -PassThru
+          $p = Start-Process $installer.FullName -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /TASKS=startup /DIR=`"$destination`"" -PassThru
           if (-not $p.WaitForExit(90000)) { $p.Kill(); throw 'Installer timeout' }
           if ($p.ExitCode -ne 0 -or -not (Test-Path "$destination/FlowGPT.exe")) { throw 'Installation failed' }
           $original = (Get-FileHash Windows/out/x64/Release/FlowGPT.exe).Hash
           if ((Get-FileHash "$destination/FlowGPT.exe").Hash -ne $original) { throw 'Installed executable differs' }
-          $p = Start-Process "$destination/FlowGPT.exe" -ArgumentList '--ui-smoke' -PassThru
+          $startupCommand = (Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run').FlowGPT
+          if ($startupCommand -ne "`"$destination\FlowGPT.exe`" --background") { throw 'Login startup command was not registered correctly' }
+          $p = Start-Process "$destination/FlowGPT.exe" -ArgumentList '--background --ui-smoke' -PassThru
           if (-not $p.WaitForExit(30000)) { $p.Kill(); throw 'Installed WinUI app timeout' }
           $report = Get-Content "$destination/ui-smoke.json" | ConvertFrom-Json
           if (-not $report.passed) { throw 'Installed application lifecycle failed' }
