@@ -42,4 +42,5 @@
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <Target Name="CopyBridge" AfterTargets="Build"><ItemGroup><BridgeFiles Include="Bridge\*" /></ItemGroup><Copy SourceFiles="@(BridgeFiles)" DestinationFolder="$(OutDir)Bridge" /></Target>
+  <Target Name="MergeWinUIResources" AfterTargets="CopyBridge"><Exec Command="powershell.exe -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)merge-resources.ps1&quot; -OutputDirectory &quot;$(OutDir).&quot;" /></Target>
 </Project>
