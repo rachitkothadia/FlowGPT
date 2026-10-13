@@ -6,6 +6,8 @@
 #include <winrt/Microsoft.UI.Xaml.Controls.h>
 #include <winrt/Microsoft.UI.Xaml.Controls.Primitives.h>
 #include <winrt/Microsoft.UI.Xaml.Markup.h>
+#include <winrt/Microsoft.UI.Xaml.XamlTypeInfo.h>
+#include <winrt/Windows.UI.Xaml.Interop.h>
 #include <winrt/Microsoft.UI.Xaml.Media.h>
 #include <winrt/Microsoft.UI.Dispatching.h>
 #include <winrt/Windows.UI.h>
@@ -19,18 +21,24 @@ namespace {
 constexpr UINT TrayMessage=WM_APP+3;
 bool smokeLaunch=false;
 void stage(const std::wstring& text){if(smokeLaunch)flow::atomicWrite(std::filesystem::path(flow::exePath()).parent_path()/L"ui-stage.txt",text);}
-struct App : ApplicationT<App> {
+struct App : ApplicationT<App,winrt::Microsoft::UI::Xaml::Markup::IXamlMetadataProvider> {
+    winrt::Microsoft::UI::Xaml::XamlTypeInfo::XamlControlsXamlMetaDataProvider metadata{nullptr};
     Window window{nullptr};NavigationView navigation{nullptr};StackPanel content{nullptr};TextBlock status{nullptr};
     DispatcherTimer timer{nullptr};HWND hwnd{};NOTIFYICONDATAW tray{};HICON icon{};flow::Hud hud;
     std::unique_ptr<flow::AppController> controller;
     std::wstring page=L"Overview";bool background=false,preview=false,smoke=false;unsigned hotkeyChoice=0;double launched=flow::now();
     std::vector<std::pair<std::wstring,std::wstring>> devices;
-    App(){stage(L"Application constructor");Resources().MergedDictionaries().Append(XamlControlsResources());UnhandledException([](auto&&,auto&& e){if(smokeLaunch){flow::atomicWrite(std::filesystem::path(flow::exePath()).parent_path()/L"ui-startup-error.txt",std::wstring(e.Message()));e.Handled(true);Application::Current().Exit();}});stage(L"Application resources ready");}
+    App(){stage(L"Application constructor");UnhandledException([](auto&&,auto&& e){if(smokeLaunch){flow::atomicWrite(std::filesystem::path(flow::exePath()).parent_path()/L"ui-startup-error.txt",std::wstring(e.Message()));e.Handled(true);Application::Current().Exit();}});}
+    auto provider(){if(!metadata)metadata=winrt::Microsoft::UI::Xaml::XamlTypeInfo::XamlControlsXamlMetaDataProvider();return metadata;}
+    winrt::Microsoft::UI::Xaml::Markup::IXamlType GetXamlType(winrt::Windows::UI::Xaml::Interop::TypeName const& type){return provider().GetXamlType(type);}
+    winrt::Microsoft::UI::Xaml::Markup::IXamlType GetXamlType(hstring const& name){return provider().GetXamlType(name);}
+    com_array<winrt::Microsoft::UI::Xaml::Markup::XmlnsDefinition> GetXmlnsDefinitions(){return provider().GetXmlnsDefinitions();}
     static TextBlock label(const std::wstring& value,double size=14){TextBlock t;t.Text(value);t.FontSize(size);t.TextWrapping(TextWrapping::Wrap);return t;}
     template<typename F> Button button(const std::wstring& text,F fn){Button b;b.Content(box_value(text));b.Click([fn](auto&&,auto&&){fn();});return b;}
     static SolidColorBrush green(){return SolidColorBrush(winrt::Windows::UI::Color{255,84,139,120});}
     void OnLaunched(LaunchActivatedEventArgs const&){
         stage(L"OnLaunched entered");
+        Resources().MergedDictionaries().Append(XamlControlsResources());stage(L"Application resources ready");
         std::wstring args=GetCommandLineW();background=args.find(L"--background")!=std::wstring::npos;smoke=args.find(L"--ui-smoke")!=std::wstring::npos;preview=smoke||args.find(L"--design-preview")!=std::wstring::npos;
         window=Window();window.Title(L"FlowGPT");window.as<IWindowNative>()->get_WindowHandle(&hwnd);SetWindowSubclass(hwnd,procedure,1,reinterpret_cast<DWORD_PTR>(this));
         icon=flow::waveformIcon();SendMessageW(hwnd,WM_SETICON,ICON_SMALL,reinterpret_cast<LPARAM>(icon));SendMessageW(hwnd,WM_SETICON,ICON_BIG,reinterpret_cast<LPARAM>(icon));
