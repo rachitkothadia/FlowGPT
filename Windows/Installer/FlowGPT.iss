@@ -25,6 +25,7 @@ LicenseFile=..\..\LICENSE
 Source: "..\out\x64\Release\*"; DestDir: "{app}"; Excludes: "*.pdb,native-tests.json,ui-*.json,ui-*.txt,ui-*.png"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "WebView2Bootstrapper.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall
 Source: "..\..\LICENSE"; DestDir: "{app}"
+Source: "..\THIRD_PARTY_NOTICES.md"; DestDir: "{app}"
 
 [Icons]
 Name: "{group}\FlowGPT"; Filename: "{app}\FlowGPT.exe"

@@ -6,6 +6,7 @@ class AppController {
     bool historyReady_=false, queryPending_=false, feedPending_=false, commandPending_=false;
     int phase_=0;
     bool frozen_=false, stopSent_=false;
+    bool pasteDelivered_=false;
     double startAt_=0, stopAt_=0, stableAt_=0, lastHealth_=0, pasteAt_=0, drainedAt_=0;
     std::wstring stable_;
     Recovery recovery_;
@@ -124,8 +125,8 @@ public:
         }
         if(session.state==State::inserting) {
             if(pasteAt_==0){if(GetAsyncKeyState(VK_CONTROL)&0x8000||GetAsyncKeyState(VK_MENU)&0x8000||GetAsyncKeyState(VK_SHIFT)&0x8000)return;
-                bool sent=insertion.paste(owner_,result);pasteAt_=now();message=sent?L"Paste delivered; checking destination…":L"Saved in History; destination could not accept paste.";}
-            if(now()-pasteAt_>=0.7){insertion.restore(owner_);session.state=State::attempted;message=L"Saved in History. Paste was attempted; confirm it in your destination."+draftNotice;changed();}
+                pasteDelivered_=insertion.paste(owner_,result);pasteAt_=now();message=pasteDelivered_?L"Paste delivered; checking destination…":L"Saved in History; destination could not accept paste.";}
+            if(now()-pasteAt_>=0.7){insertion.restore(owner_);session.state=pasteDelivered_?State::attempted:State::finished;message=(pasteDelivered_?L"Saved in History. Paste was attempted; confirm it in your destination.":L"Saved in History; text could not be inserted into the destination.")+draftNotice;changed();}
             return;
         }
         if(!queryPending_&&browser.ready()){queryPending_=true;auto token=session.generation;browser.call(L"state",[this,token](Json j){queryPending_=false;if(token!=session.generation)return;page(j);});}

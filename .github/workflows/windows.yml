@@ -69,26 +69,50 @@ jobs:
         run: |
           & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" Windows/Installer/FlowGPT.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Get-FileHash release/windows/*.exe -Algorithm SHA256 | Format-List | Out-File release/windows/SHA256SUMS.txt
+          $installer = Get-ChildItem release/windows/*Setup.exe | Select-Object -First 1
+          $hash = (Get-FileHash $installer.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $($installer.Name)" | Set-Content release/windows/SHA256SUMS.txt -Encoding utf8NoBOM
       - name: Verify installed payload and uninstall
         shell: pwsh
         run: |
           $installer = Get-ChildItem release/windows/*Setup.exe | Select-Object -First 1
           $destination = Join-Path $env:RUNNER_TEMP 'FlowGPT-installed-fixture'
+          $checks = [ordered]@{}
+          $dataDirectory = Join-Path $env:LOCALAPPDATA 'FlowGPT'
+          New-Item $dataDirectory -ItemType Directory -Force | Out-Null
+          $marker = Join-Path $dataDirectory 'disposable-installer-fixture.txt'
+          'Preserve this fixture during upgrade and uninstall' | Set-Content $marker
           $p = Start-Process $installer.FullName -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /TASKS=startup /DIR=`"$destination`"" -PassThru
           if (-not $p.WaitForExit(90000)) { $p.Kill(); throw 'Installer timeout' }
           if ($p.ExitCode -ne 0 -or -not (Test-Path "$destination/FlowGPT.exe")) { throw 'Installation failed' }
+          $checks.installSucceeded = $true
           $original = (Get-FileHash Windows/out/x64/Release/FlowGPT.exe).Hash
           if ((Get-FileHash "$destination/FlowGPT.exe").Hash -ne $original) { throw 'Installed executable differs' }
+          $checks.installedExecutableMatches = $true
+          if (Test-Path "$destination/native-tests.json") { throw 'Developer test reports were bundled in the installed app' }
+          $checks.developerReportsExcluded = $true
           $startupCommand = (Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run').FlowGPT
           if ($startupCommand -ne "`"$destination\FlowGPT.exe`" --background") { throw 'Login startup command was not registered correctly' }
+          $checks.loginStartupRegistered = $true
           $p = Start-Process "$destination/FlowGPT.exe" -ArgumentList '--background --ui-smoke' -PassThru
           if (-not $p.WaitForExit(30000)) { $p.Kill(); throw 'Installed WinUI app timeout' }
           $report = Get-Content "$destination/ui-smoke.json" | ConvertFrom-Json
           if (-not $report.passed) { throw 'Installed application lifecycle failed' }
+          $checks.installedBackgroundLifecyclePassed = $true
+          $p = Start-Process $installer.FullName -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /TASKS=startup /DIR=`"$destination`"" -PassThru
+          if (-not $p.WaitForExit(90000)) { $p.Kill(); throw 'Upgrade timeout' }
+          if ($p.ExitCode -ne 0 -or -not (Test-Path $marker)) { throw 'Upgrade did not preserve user data' }
+          $checks.upgradePreservesUserData = $true
           $p = Start-Process "$destination/unins000.exe" -ArgumentList '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART' -PassThru
           if (-not $p.WaitForExit(30000)) { $p.Kill(); throw 'Uninstaller timeout' }
           if (Test-Path "$destination/FlowGPT.exe") { throw 'Installed app not removed' }
+          $checks.uninstallRemovesApplication = $true
+          if ((Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -ErrorAction SilentlyContinue).FlowGPT) { throw 'Uninstall did not remove login startup' }
+          $checks.uninstallRemovesStartup = $true
+          if (-not (Test-Path $marker)) { throw 'Silent uninstall unexpectedly removed saved data' }
+          $checks.uninstallKeepsUserDataByDefault = $true
+          Remove-Item $marker
+          @{ passed=$true; checks=$checks } | ConvertTo-Json -Depth 5 | Set-Content release/windows/installer-tests.json -Encoding utf8NoBOM
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:

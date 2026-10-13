@@ -14,7 +14,7 @@ Settings offers alternative shortcuts if another app already owns the combinatio
 
 ## Background operation
 
-Closing the main window keeps FlowGPT in the notification area. Use its tray menu for connection, history/settings, local dictation preview, or Quit. Completion does not activate Settings. Enable **Start FlowGPT when I sign in** to launch it into the tray at Windows login. It is a per-user desktop app, not a service that records while nobody is signed in.
+Closing the main window keeps FlowGPT in the notification area. Use its tray menu for connection, history/settings, local dictation preview, or Quit. Completion does not activate Settings. The installer selects **Start FlowGPT in the tray when I sign in** by default; you can change this in FlowGPT Settings. It is a per-user desktop app, not a service that records while nobody is signed in.
 
 ## Audio and text delivery
 
@@ -56,3 +56,23 @@ Use **Copy diagnostics** when reporting a failure. It includes version, state, c
 Portable policy tests can run on macOS and Windows. Windows native fixtures use isolated local HTML, synthetic audio, temporary storage, a disposable editor, and window lifecycle checks. They do not establish physical microphone performance or that the real signed-in ChatGPT recorder works hidden. Those checks require the real Windows application with the tester's account and hardware.
 
 Build evidence and any remaining unverified checks must accompany the installer. No 100% speech accuracy, every-editor support, or universal startup-time guarantee is claimed.
+
+## Build on Windows
+
+Install Visual Studio 2022/2026 with Desktop development with C++, a Windows SDK, and C++/WinRT tooling. From a Visual Studio developer terminal:
+
+```powershell
+msbuild Windows/FlowGPT.vcxproj /restore /p:Configuration=Release /p:Platform=x64
+```
+
+The project automatically merges the framework theme resource indexes for unpackaged WinUI startup. `Windows/out/x64/Release` contains the native app and bundled Windows App SDK runtime. For the distributable installer, use the repository's Windows workflow: it adds the matching native CRT, downloads and verifies Microsoft's WebView2 bootstrapper, runs native/UI fixtures, and packages with Inno Setup 6. It then installs, upgrades, launches, and uninstalls the actual EXE payload. An ordinary development build alone is not the finished release installer.
+
+Portable policy checks do not need Windows:
+
+```sh
+cmake -S Windows -B /tmp/flowgpt-core-build
+cmake --build /tmp/flowgpt-core-build
+ctest --test-dir /tmp/flowgpt-core-build --output-on-failure
+```
+
+Third-party components retain their own licenses; see [the Windows notices](../Windows/THIRD_PARTY_NOTICES.md).
