@@ -13,7 +13,7 @@ inline int insertionProbe(){WNDCLASSW c{};c.lpfnWndProc=probeProc;c.hInstance=Ge
 inline void messages(){MSG m{};while(PeekMessageW(&m,nullptr,0,0,PM_REMOVE)){TranslateMessage(&m);DispatchMessageW(&m);}}
 inline int nativeTests(){
     auto root=std::filesystem::temp_directory_path()/(L"FlowGPT-NativeTests-"+guid());std::filesystem::create_directories(root);
-    Json checks;
+    Json checks, details;
     auto check=[&](const wchar_t* name,bool value){checks.Insert(name,JValue::CreateBooleanValue(value));};
     try{
         Store a(root/L"store");a.load();a.save(L"हिन्दी English मराठी 🎤\nC++ Rust");a.setting(L"appearance",JValue::CreateStringValue(L"Dark"));
@@ -36,7 +36,7 @@ inline int nativeTests(){
         Browser browser(root/L"browser",true);browser.init();bool response=false;Json result;
         auto request=[&](const std::wstring& action,const std::wstring& expected=L""){
             response=false;browser.call(action,[&](Json j){result=j;response=true;},expected);double deadline=now()+10;
-            while(!response&&now()<deadline){messages();browser.tick();Sleep(10);}return response&&!result.HasKey(L"error");
+            while(!response&&now()<deadline){messages();browser.tick();Sleep(10);}if(result.HasKey(L"error"))details.Insert(action,result.GetNamedValue(L"error"));return response&&!result.HasKey(L"error");
         };
         double deadline=now()+30;while(!browser.ready()&&now()<deadline){messages();Sleep(20);}Sleep(200);messages();
         check(L"webviewFixtureReady",browser.ready());check(L"temporaryChatVerified",request(L"state")&&result.GetNamedBoolean(L"temporary",false));
@@ -52,6 +52,6 @@ inline int nativeTests(){
         check(L"changedDraftRefused",!request(L"discard",L"different text"));check(L"matchingDraftRemoved",request(L"discard",L"नमस्ते English मराठी 🎤"));check(L"audioCleanup",request(L"endAudio"));browser.close();
     }catch(const std::exception& e){checks.Insert(L"exception",JValue::CreateStringValue(wide(e.what())));}catch(const winrt::hresult_error& e){checks.Insert(L"exception",JValue::CreateNumberValue(e.code().value));}
     bool pass=true;for(auto pair:checks)if(pair.Value().ValueType()!=winrt::Windows::Data::Json::JsonValueType::Boolean||!pair.Value().GetBoolean())pass=false;
-    Json report;report.Insert(L"passed",JValue::CreateBooleanValue(pass));report.Insert(L"checks",checks);report.Insert(L"type",JValue::CreateStringValue(L"Windows isolated native storage/window/WebView2 audio fixtures; no account or physical microphone"));atomicWrite(std::filesystem::path(exePath()).parent_path()/L"native-tests.json",std::wstring(report.Stringify()));return pass?0:1;
+    Json report;report.Insert(L"passed",JValue::CreateBooleanValue(pass));report.Insert(L"checks",checks);report.Insert(L"details",details);report.Insert(L"type",JValue::CreateStringValue(L"Windows isolated native storage/window/WebView2 audio fixtures; no account or physical microphone"));atomicWrite(std::filesystem::path(exePath()).parent_path()/L"native-tests.json",std::wstring(report.Stringify()));return pass?0:1;
 }
 }

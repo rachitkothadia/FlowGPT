@@ -1,6 +1,7 @@
 #pragma once
 #include "Platform.h"
 #include <WebView2.h>
+#include <WebView2EnvironmentOptions.h>
 #include <map>
 
 namespace flow {
@@ -44,7 +45,11 @@ public:
         if(!window_){WNDCLASSW c{};c.lpfnWndProc=procedure;c.hInstance=GetModuleHandleW(nullptr);c.lpszClassName=L"FlowGPTBrowserHost";c.hCursor=LoadCursorW(nullptr,IDC_ARROW);RegisterClassW(&c);
             window_=CreateWindowExW(WS_EX_TOOLWINDOW|WS_EX_LAYERED,c.lpszClassName,L"FlowGPT · ChatGPT connection",WS_OVERLAPPEDWINDOW,CW_USEDEFAULT,CW_USEDEFAULT,960,740,nullptr,nullptr,c.hInstance,nullptr);SetWindowLongPtrW(window_,GWLP_USERDATA,reinterpret_cast<LONG_PTR>(this));hide();}
         std::filesystem::create_directories(profile_);
-        HRESULT hr=CreateCoreWebView2EnvironmentWithOptions(nullptr,profile_.c_str(),nullptr,Microsoft::WRL::Callback<ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler>([this](HRESULT result,ICoreWebView2Environment* env)->HRESULT{
+        auto options=Microsoft::WRL::Make<CoreWebView2EnvironmentOptions>();
+        // The explicit native shortcut starts audio in a background page. Browser
+        // autoplay policy otherwise leaves AudioContext.resume() awaiting a DOM gesture.
+        options->put_AdditionalBrowserArguments(L"--autoplay-policy=no-user-gesture-required");
+        HRESULT hr=CreateCoreWebView2EnvironmentWithOptions(nullptr,profile_.c_str(),options.Get(),Microsoft::WRL::Callback<ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler>([this](HRESULT result,ICoreWebView2Environment* env)->HRESULT{
             if(FAILED(result)){status=L"WebView2 runtime unavailable. Install Microsoft Edge WebView2 Runtime.";return S_OK;}environment_=env;
             env->CreateCoreWebView2Controller(window_,Microsoft::WRL::Callback<ICoreWebView2CreateCoreWebView2ControllerCompletedHandler>([this](HRESULT created,ICoreWebView2Controller* controller)->HRESULT{
                 if(FAILED(created)){status=L"ChatGPT browser could not initialize";return S_OK;}controller_=controller;controller_->get_CoreWebView2(&web_);resize();

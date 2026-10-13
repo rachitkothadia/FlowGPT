@@ -43,7 +43,19 @@ jobs:
           if (-not $p.WaitForExit(90000)) { $p.Kill(); throw 'Native fixture timeout' }
           if ($p.ExitCode -ne 0) { Get-Content Windows/out/x64/Release/native-tests.json -ErrorAction SilentlyContinue; throw 'Native fixtures failed' }
           Get-Content Windows/out/x64/Release/native-tests.json
+          Add-Type -AssemblyName System.Drawing
+          Add-Type 'using System; using System.Runtime.InteropServices; public static class FlowCapture { [StructLayout(LayoutKind.Sequential)] public struct Rect { public int Left,Top,Right,Bottom; } [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out Rect r); }'
           $p = Start-Process $app -ArgumentList '--ui-smoke' -PassThru
+          Start-Sleep -Seconds 4
+          $p.Refresh()
+          $rect = New-Object FlowCapture+Rect
+          if ($p.MainWindowHandle -ne 0 -and [FlowCapture]::GetWindowRect($p.MainWindowHandle,[ref]$rect)) {
+            $bitmap = New-Object System.Drawing.Bitmap ($rect.Right-$rect.Left),($rect.Bottom-$rect.Top)
+            $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+            $graphics.CopyFromScreen($rect.Left,$rect.Top,0,0,$bitmap.Size)
+            $bitmap.Save((Join-Path (Resolve-Path Windows/out/x64/Release).Path 'ui-preview.png'))
+            $graphics.Dispose(); $bitmap.Dispose()
+          }
           if (-not $p.WaitForExit(30000)) { $p.Kill(); throw 'WinUI lifecycle timeout' }
           $report = Get-Content Windows/out/x64/Release/ui-smoke.json | ConvertFrom-Json
           if (-not $report.passed) { throw 'WinUI lifecycle fixture failed' }
