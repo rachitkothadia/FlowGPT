@@ -57,6 +57,11 @@ jobs:
             $graphics.Dispose(); $bitmap.Dispose()
           }
           if (-not $p.WaitForExit(30000)) { $p.Kill(); throw 'WinUI lifecycle timeout' }
+          if (-not (Test-Path Windows/out/x64/Release/ui-smoke.json)) {
+            Get-Content Windows/out/x64/Release/ui-stage.txt -ErrorAction SilentlyContinue
+            Get-Content Windows/out/x64/Release/ui-startup-error.txt -ErrorAction SilentlyContinue
+            throw "WinUI app exited without its lifecycle report: $($p.ExitCode)"
+          }
           $report = Get-Content Windows/out/x64/Release/ui-smoke.json | ConvertFrom-Json
           if (-not $report.passed) { throw 'WinUI lifecycle fixture failed' }
       - name: Build EXE installer

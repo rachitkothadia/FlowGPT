@@ -17,17 +17,20 @@ using namespace winrt::Microsoft::UI::Xaml::Controls;
 using namespace winrt::Microsoft::UI::Xaml::Media;
 namespace {
 constexpr UINT TrayMessage=WM_APP+3;
+bool smokeLaunch=false;
+void stage(const std::wstring& text){if(smokeLaunch)flow::atomicWrite(std::filesystem::path(flow::exePath()).parent_path()/L"ui-stage.txt",text);}
 struct App : ApplicationT<App> {
     Window window{nullptr};NavigationView navigation{nullptr};StackPanel content{nullptr};TextBlock status{nullptr};
     DispatcherTimer timer{nullptr};HWND hwnd{};NOTIFYICONDATAW tray{};HICON icon{};flow::Hud hud;
     std::unique_ptr<flow::AppController> controller;
     std::wstring page=L"Overview";bool background=false,preview=false,smoke=false;unsigned hotkeyChoice=0;double launched=flow::now();
     std::vector<std::pair<std::wstring,std::wstring>> devices;
-    App(){Resources().MergedDictionaries().Append(XamlControlsResources());}
+    App(){stage(L"Application constructor");Resources().MergedDictionaries().Append(XamlControlsResources());UnhandledException([](auto&&,auto&& e){if(smokeLaunch){flow::atomicWrite(std::filesystem::path(flow::exePath()).parent_path()/L"ui-startup-error.txt",std::wstring(e.Message()));e.Handled(true);Application::Current().Exit();}});stage(L"Application resources ready");}
     static TextBlock label(const std::wstring& value,double size=14){TextBlock t;t.Text(value);t.FontSize(size);t.TextWrapping(TextWrapping::Wrap);return t;}
     template<typename F> Button button(const std::wstring& text,F fn){Button b;b.Content(box_value(text));b.Click([fn](auto&&,auto&&){fn();});return b;}
     static SolidColorBrush green(){return SolidColorBrush(winrt::Windows::UI::Color{255,84,139,120});}
     void OnLaunched(LaunchActivatedEventArgs const&){
+        stage(L"OnLaunched entered");
         std::wstring args=GetCommandLineW();background=args.find(L"--background")!=std::wstring::npos;smoke=args.find(L"--ui-smoke")!=std::wstring::npos;preview=smoke||args.find(L"--design-preview")!=std::wstring::npos;
         window=Window();window.Title(L"FlowGPT");window.as<IWindowNative>()->get_WindowHandle(&hwnd);SetWindowSubclass(hwnd,procedure,1,reinterpret_cast<DWORD_PTR>(this));
         icon=flow::waveformIcon();SendMessageW(hwnd,WM_SETICON,ICON_SMALL,reinterpret_cast<LPARAM>(icon));SendMessageW(hwnd,WM_SETICON,ICON_BIG,reinterpret_cast<LPARAM>(icon));
@@ -45,7 +48,7 @@ struct App : ApplicationT<App> {
         auto appearance=controller->store.settings.GetNamedString(L"appearance",L"System");navigation.RequestedTheme(appearance==L"Dark"?ElementTheme::Dark:appearance==L"Light"?ElementTheme::Light:ElementTheme::Default);
         tray.cbSize=sizeof(tray);tray.hWnd=hwnd;tray.uID=1;tray.uFlags=NIF_ICON|NIF_MESSAGE|NIF_TIP;tray.uCallbackMessage=TrayMessage;tray.hIcon=icon;wcscpy_s(tray.szTip,L"FlowGPT · Ctrl + Alt + Space");Shell_NotifyIconW(NIM_ADD,&tray);tray.uVersion=NOTIFYICON_VERSION_4;Shell_NotifyIconW(NIM_SETVERSION,&tray);
         timer=DispatcherTimer();timer.Interval(std::chrono::milliseconds(100));timer.Tick([this](auto&&,auto&&){controller->tick();renderStatus();hud.update(controller->session.state,controller->microphone.audio.level());if(smoke&&flow::now()-launched>12){flow::Json checks;checks.Insert(L"nativeWinUIWindowVisible",flow::JValue::CreateBooleanValue(IsWindowVisible(hwnd)!=FALSE));checks.Insert(L"historyFixtureLoaded",flow::JValue::CreateBooleanValue(controller->store.entries.size()==1));SendMessageW(hwnd,WM_CLOSE,0,0);checks.Insert(L"closeKeepsTrayResident",flow::JValue::CreateBooleanValue(IsWindow(hwnd)&&!IsWindowVisible(hwnd)));flow::Json report;report.Insert(L"checks",checks);bool pass=true;for(auto p:checks)pass=pass&&p.Value().GetBoolean();report.Insert(L"passed",flow::JValue::CreateBooleanValue(pass));flow::atomicWrite(std::filesystem::path(flow::exePath()).parent_path()/L"ui-smoke.json",std::wstring(report.Stringify()));quit();}});timer.Start();render();
-        window.Activate();if(background)ShowWindow(hwnd,SW_HIDE);
+        window.Activate();stage(L"Window activated");if(background)ShowWindow(hwnd,SW_HIDE);
     }
     void registerHotkey(){UnregisterHotKey(hwnd,1);UINT key=hotkeyChoice==0?VK_SPACE:hotkeyChoice==1?'D':VK_F8;UINT modifiers=hotkeyChoice==2?MOD_CONTROL:MOD_CONTROL|MOD_ALT;controller->hotkeyReady=RegisterHotKey(hwnd,1,modifiers|MOD_NOREPEAT,key)!=FALSE;}
     static LRESULT CALLBACK procedure(HWND h,UINT m,WPARAM w,LPARAM l,UINT_PTR,DWORD_PTR data){auto self=reinterpret_cast<App*>(data);if(!self)return DefSubclassProc(h,m,w,l);
@@ -101,8 +104,9 @@ int WINAPI wWinMain(HINSTANCE,HINSTANCE,PWSTR,int){
     if(std::wstring(GetCommandLineW()).find(L"--insertion-probe")!=std::wstring::npos){winrt::init_apartment(winrt::apartment_type::single_threaded);return flow::insertionProbe();}
     if(std::wstring(GetCommandLineW()).find(L"--self-test")!=std::wstring::npos){winrt::init_apartment(winrt::apartment_type::single_threaded);return flow::nativeTests();}
     HANDLE instance=CreateMutexW(nullptr,TRUE,L"Local\\FlowGPT.Windows.Instance");if(GetLastError()==ERROR_ALREADY_EXISTS){HWND existing=FindWindowW(nullptr,L"FlowGPT");if(existing){ShowWindow(existing,SW_RESTORE);SetForegroundWindow(existing);}if(instance)CloseHandle(instance);return 0;}
-    try{winrt::init_apartment(winrt::apartment_type::single_threaded);Application::Start([](auto&&){winrt::make<App>();});}
-    catch(const winrt::hresult_error& e){MessageBoxW(nullptr,e.message().c_str(),L"FlowGPT could not start",MB_ICONERROR);if(instance)CloseHandle(instance);return 1;}
+    smokeLaunch=std::wstring(GetCommandLineW()).find(L"--ui-smoke")!=std::wstring::npos;
+    try{winrt::init_apartment(winrt::apartment_type::single_threaded);stage(L"Entering Application.Start");winrt::com_ptr<App> application;Application::Start([&application](auto&&){application=winrt::make_self<App>();});}
+    catch(const winrt::hresult_error& e){if(smokeLaunch)flow::atomicWrite(std::filesystem::path(flow::exePath()).parent_path()/L"ui-startup-error.txt",std::wstring(e.message()));else MessageBoxW(nullptr,e.message().c_str(),L"FlowGPT could not start",MB_ICONERROR);if(instance)CloseHandle(instance);return 1;}
     catch(...){MessageBoxW(nullptr,L"FlowGPT could not initialize. Reinstall the complete application and its runtimes.",L"FlowGPT",MB_ICONERROR);if(instance)CloseHandle(instance);return 1;}
     if(instance)CloseHandle(instance);return 0;
 }
