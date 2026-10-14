@@ -1,0 +1,51 @@
+{
+  "passed" : true,
+  "runs" : [
+    {
+      "engineStartMs" : 411.94404166890308,
+      "failure" : "",
+      "firstAudioFrameMs" : 457.63274998171255,
+      "input" : "MacBook Air Microphone",
+      "pendingBytes" : 3388,
+      "run" : 1,
+      "underOneSecond" : true
+    },
+    {
+      "engineStartMs" : 111.83933331631124,
+      "failure" : "",
+      "firstAudioFrameMs" : 122.50533333281055,
+      "input" : "MacBook Air Microphone",
+      "pendingBytes" : 660,
+      "run" : 2,
+      "underOneSecond" : true
+    },
+    {
+      "engineStartMs" : 106.12991667585447,
+      "failure" : "",
+      "firstAudioFrameMs" : 116.61733334767632,
+      "input" : "MacBook Air Microphone",
+      "pendingBytes" : 660,
+      "run" : 3,
+      "underOneSecond" : true
+    },
+    {
+      "engineStartMs" : 105.16187499160878,
+      "failure" : "",
+      "firstAudioFrameMs" : 115.72549998527393,
+      "input" : "MacBook Air Microphone",
+      "pendingBytes" : 660,
+      "run" : 4,
+      "underOneSecond" : true
+    },
+    {
+      "engineStartMs" : 136.48408331209794,
+      "failure" : "",
+      "firstAudioFrameMs" : 146.89633331727237,
+      "input" : "MacBook Air Microphone",
+      "pendingBytes" : 660,
+      "run" : 5,
+      "underOneSecond" : true
+    }
+  ],
+  "type" : "Real native microphone cold\/warm timings; no account or upload"
+}

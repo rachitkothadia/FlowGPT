@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.0 preview
+
+- Shorter native Home, History, Settings and About interfaces, with update checking and checksum-verified downloads.
+- Windows Ctrl + Space option, close-to-tray handling, per-user login startup checks and smoother DPI-aware recording strip.
+- Fix the reported Windows value-pattern access violation; isolate text-field automation on a worker thread and guard native/UI callbacks.
+- Broader rich-editor capability checks, native foreground paste, and typed clipboard restoration without holding the completion loader open.
+- Preserve the original transcript alongside optional whitespace-only numbered-list presentation. No extra AI pass or language rewriting.
+- Faster provider polling and completion stability checks that reset when processing resumes or the transcript changes.
+- Trusted publisher signing workflows are prepared, but this preview remains unsigned/ad hoc because publisher credentials are not configured.
+- Mac PowerPoint canvas focus is still ambiguous; real Windows Office and physical microphone/account testing remain necessary. See the release validation report for measured results and limits.
+
 ## 1.0.3
 
 - Capture-only native microphone startup before browser/network initialization.
