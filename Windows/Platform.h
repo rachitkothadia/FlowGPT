@@ -125,7 +125,9 @@ public:
     }
     void stop() { audio.freeze(); SetEvent(stop_); if(thread_.joinable()) thread_.join(); running_=false; }
 };
-inline bool startupEnabled() { HKEY key{}; if(RegOpenKeyExW(HKEY_CURRENT_USER,L"Software\\Microsoft\\Windows\\CurrentVersion\\Run",0,KEY_READ,&key)!=ERROR_SUCCESS)return false; LONG result=RegQueryValueExW(key,L"FlowGPT",nullptr,nullptr,nullptr,nullptr);RegCloseKey(key);return result==ERROR_SUCCESS; }
+inline bool startupEnabled() { HKEY key{};if(RegOpenKeyExW(HKEY_CURRENT_USER,L"Software\\Microsoft\\Windows\\CurrentVersion\\Run",0,KEY_READ,&key)!=ERROR_SUCCESS)return false;
+    wchar_t value[32768]{};DWORD bytes=sizeof(value),type{};LONG result=RegQueryValueExW(key,L"FlowGPT",nullptr,&type,reinterpret_cast<BYTE*>(value),&bytes);RegCloseKey(key);
+    return result==ERROR_SUCCESS&&type==REG_SZ&&bytes<=sizeof(value)&&bytes>=sizeof(wchar_t)&&value[bytes/sizeof(wchar_t)-1]==0&&std::wstring(value)==L"\""+exePath()+L"\" --background"; }
 inline void startup(bool enable) { HKEY key{};winrt::check_win32(RegCreateKeyExW(HKEY_CURRENT_USER,L"Software\\Microsoft\\Windows\\CurrentVersion\\Run",0,nullptr,0,KEY_WRITE,nullptr,&key,nullptr)); LONG hr;
     if(enable){auto command=L"\""+exePath()+L"\" --background";hr=RegSetValueExW(key,L"FlowGPT",0,REG_SZ,reinterpret_cast<const BYTE*>(command.c_str()),DWORD((command.size()+1)*2));}
     else{hr=RegDeleteValueW(key,L"FlowGPT");if(hr==ERROR_FILE_NOT_FOUND)hr=ERROR_SUCCESS;}RegCloseKey(key);winrt::check_win32(hr);

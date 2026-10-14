@@ -108,25 +108,40 @@ struct App : ApplicationT<App,winrt::Microsoft::UI::Xaml::Markup::IXamlMetadataP
         UnregisterHotKey(hwnd,1);UINT key=hotkeyChoice==1?'D':hotkeyChoice==2?VK_F8:VK_SPACE;
         UINT modifiers=hotkeyChoice>=2?MOD_CONTROL:MOD_CONTROL|MOD_ALT;controller->hotkeyReady=RegisterHotKey(hwnd,1,modifiers|MOD_NOREPEAT,key)!=FALSE;
     }
+    void finishUIReport(){
+        flow::Json report;report.Insert(L"checks",uiChecks);bool pass=true;for(auto p:uiChecks)pass=pass&&p.Value().GetBoolean();report.Insert(L"passed",flow::JValue::CreateBooleanValue(pass));
+        flow::atomicWrite(std::filesystem::path(flow::exePath()).parent_path()/L"ui-smoke.json",std::wstring(report.Stringify()));quit();
+    }
     void verifyUI(){
-        stage(L"Verifying UI phase "+std::to_wstring(smokePhase));
-        if(flow::now()<smokeNext)return;auto check=[&](const wchar_t* name,bool good){uiChecks.Insert(name,flow::JValue::CreateBooleanValue(good));};
+        if(flow::now()<smokeNext)return;stage(L"Verifying UI phase "+std::to_wstring(smokePhase));auto check=[&](const wchar_t* name,bool good){uiChecks.Insert(name,flow::JValue::CreateBooleanValue(good));};
+        auto next=[&](int phase){smokePhase=phase;smokeNext=flow::now()+0.25;};
         if(smokePhase==0){
             check(background?L"startupWindowHidden":L"nativeWinUIWindowVisible",background?!IsWindowVisible(hwnd):IsWindowVisible(hwnd)!=FALSE);
             check(L"historyFixtureLoaded",controller->store.entries.size()==1);check(L"shortcutRegisteredInApp",controller->hotkeyReady);check(L"trayIconRegistered",trayReady);
-            navigation.SelectedItem(navigation.MenuItems().GetAt(1));check(L"historyPageRenders",page==L"History"&&searchBox&&historyList);
-            searchBox.Text(L"PROJECT");smokePhase=1;smokeNext=flow::now()+0.2;return;
+            navigation.SelectedItem(navigation.MenuItems().GetAt(1));next(1);return;
         }
-        if(smokePhase==1){check(L"historySearchIgnoresEnglishCase",historyList.Children().Size()==1&&historyList.Children().GetAt(0).try_as<Border>());searchBox.Text(L"no-such-phrase");smokePhase=2;smokeNext=flow::now()+0.2;return;}
-        check(L"historySearchEmptyState",historyList.Children().Size()==1&&historyList.Children().GetAt(0).try_as<TextBlock>());
-        navigation.SelectedItem(navigation.MenuItems().GetAt(2));check(L"settingsPageRenders",page==L"Settings"&&content.Children().Size()>8);
-        navigation.SelectedItem(navigation.MenuItems().GetAt(3));check(L"aboutUpdateCheckVisible",page==L"About"&&updateAction);
+        if(smokePhase==1){
+            bool ready=page==L"History"&&searchBox&&historyList;check(L"historyPageRenders",ready);if(!ready){finishUIReport();return;}
+            searchBox.Text(L"PROJECT");next(2);return;
+        }
+        if(smokePhase==2){
+            bool ready=historyList&&searchBox;check(L"historySearchControlsAvailable",ready);if(!ready){finishUIReport();return;}
+            check(L"historySearchIgnoresEnglishCase",historyList.Children().Size()==1&&historyList.Children().GetAt(0).try_as<Border>());searchBox.Text(L"no-such-phrase");next(3);return;
+        }
+        if(smokePhase==3){
+            bool ready=bool(historyList);check(L"historyEmptyControlsAvailable",ready);if(!ready){finishUIReport();return;}
+            check(L"historySearchEmptyState",historyList.Children().Size()==1&&historyList.Children().GetAt(0).try_as<TextBlock>());
+            navigation.SelectedItem(navigation.MenuItems().GetAt(2));next(4);return;
+        }
+        if(smokePhase==4){
+            check(L"settingsPageRenders",page==L"Settings"&&content.Children().Size()>8);navigation.SelectedItem(navigation.MenuItems().GetAt(3));next(5);return;
+        }
+        check(L"aboutUpdateCheckVisible",page==L"About"&&updateAction);
         hotkeyChoice=3;registerHotkey();check(L"ctrlSpaceShortcutRegistered",controller->hotkeyReady);hotkeyChoice=0;registerHotkey();
         navigation.RequestedTheme(ElementTheme::Dark);check(L"darkThemeApplied",navigation.RequestedTheme()==ElementTheme::Dark);navigation.RequestedTheme(ElementTheme::Light);check(L"lightThemeApplied",navigation.RequestedTheme()==ElementTheme::Light);
         controller->changed=[]{throw std::runtime_error("Injected presentation error");};controller->cancel();check(L"presentationFailureContained",controller->lastError==E_FAIL);controller->changed=[this]{if(!quitting)render();};
         SendMessageW(hwnd,WM_SYSCOMMAND,SC_CLOSE,0);check(L"titleBarCloseKeepsTrayResident",!IsWindowVisible(hwnd)&&controller!=nullptr);show();check(L"hiddenWindowReopens",IsWindowVisible(hwnd)!=FALSE);
-        flow::Json report;report.Insert(L"checks",uiChecks);bool pass=true;for(auto p:uiChecks)pass=pass&&p.Value().GetBoolean();report.Insert(L"passed",flow::JValue::CreateBooleanValue(pass));
-        flow::atomicWrite(std::filesystem::path(flow::exePath()).parent_path()/L"ui-smoke.json",std::wstring(report.Stringify()));quit();
+        finishUIReport();
     }
     static LRESULT CALLBACK procedure(HWND h,UINT m,WPARAM w,LPARAM l,UINT_PTR,DWORD_PTR data){
         auto self=reinterpret_cast<App*>(data);if(!self)return DefSubclassProc(h,m,w,l);
@@ -220,7 +235,7 @@ struct App : ApplicationT<App,winrt::Microsoft::UI::Xaml::Markup::IXamlMetadataP
 };
 }
 int WINAPI wWinMain(HINSTANCE,HINSTANCE,PWSTR,int){
-    if(std::wstring(GetCommandLineW()).find(L"--insertion-probe")!=std::wstring::npos){winrt::init_apartment(winrt::apartment_type::single_threaded);return flow::insertionProbe();}
+    if(std::wstring(GetCommandLineW()).find(L"--insertion-probe")!=std::wstring::npos){winrt::init_apartment(winrt::apartment_type::single_threaded);return flow::insertionProbe(std::wstring(GetCommandLineW()).find(L"--rich")!=std::wstring::npos);}
     if(std::wstring(GetCommandLineW()).find(L"--self-test")!=std::wstring::npos){winrt::init_apartment(winrt::apartment_type::single_threaded);return flow::nativeTests();}
     HANDLE instance=CreateMutexW(nullptr,TRUE,L"Local\\FlowGPT.Windows.Instance");if(GetLastError()==ERROR_ALREADY_EXISTS){HWND existing=FindWindowW(nullptr,L"FlowGPT");if(existing){ShowWindow(existing,SW_RESTORE);SetForegroundWindow(existing);}if(instance)CloseHandle(instance);return 0;}
     smokeLaunch=std::wstring(GetCommandLineW()).find(L"--ui-smoke")!=std::wstring::npos;

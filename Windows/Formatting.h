@@ -5,6 +5,16 @@
 #include <limits>
 
 namespace flow {
+class TranscriptFinalizer {
+    std::wstring text_;double since_=0;bool candidate_=false;
+public:
+    void reset(){text_.clear();since_=0;candidate_=false;}
+    bool accept(const std::wstring& text,bool ready,bool recording,bool transcribing,double time){
+        if(!ready||recording||transcribing||text.empty()){reset();return false;}
+        if(!candidate_||text!=text_){text_=text;since_=time;candidate_=true;return false;}
+        return time-since_>=0.2;
+    }
+};
 // This formatter only changes whitespace around already spoken/written numeric
 // labels. It never guesses lists from prose, edits a token, or interprets speech.
 inline std::wstring readableTranscript(const std::wstring& source){
@@ -20,6 +30,8 @@ inline std::wstring readableTranscript(const std::wstring& source){
         markers.push_back({i,value});i=end;
     }
     if(markers.size()<2||markers.front().number!=1)return source;
+    size_t prefix=markers.front().position;while(prefix&&iswspace(source[prefix-1]))--prefix;
+    if(prefix&&source[prefix-1]!=L':')return source;
     for(size_t i=1;i<markers.size();++i)if(markers[i].number!=markers[i-1].number+1)return source;
     std::wstring result=source;
     for(auto it=markers.rbegin();it!=markers.rend();++it){

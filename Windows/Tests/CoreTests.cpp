@@ -65,8 +65,20 @@ int main() {
     std::wstring longList,expectedList;for(unsigned i=1;i<=500;++i){if(i>1){longList+=L" ";expectedList+=L"\n";}auto item=std::to_wstring(i)+L". Item";longList+=item;expectedList+=item;}
     check(readableTranscript(longList)==expectedList,"no small list item limit");
     check(readableTranscript(readableTranscript(longList))==expectedList,"formatting is idempotent");
+    check(readableTranscript(L"January 1. That was a date 2. Not a list")==L"January 1. That was a date 2. Not a list","ordinary prose is not treated as a list");
+    TranscriptFinalizer finalizer;
+    check(!finalizer.accept(L"hello",true,false,false,10),"final text waits for stability");
+    check(!finalizer.accept(L"hello",false,false,true,10.25),"provider work resets stability");
+    check(!finalizer.accept(L"hello",true,false,false,10.3),"same text after pending state restarts stability");
+    check(finalizer.accept(L"hello",true,false,false,10.51),"stable final text completes");
+    check(!finalizer.accept(L"hello tail",true,false,false,10.52),"late tail is not truncated");
     check(updateVersion(L"1.10.0")>updateVersion(L"1.9.0"),"versions compared numerically");
     check(!updateVersion(L"1.2")&&!updateVersion(L"1.2.3.4")&&!updateVersion(L"1.2.x")&&!updateVersion(L"1.9999999.0"),"malformed update versions refused");
     check(trustedUpdateAsset(L"https://github.com/rachitkothadia/FlowGPT/releases/download/v1/file.exe")&&!trustedUpdateAsset(L"https://github.com/other/FlowGPT/releases/download/v1/file.exe")&&!trustedUpdateAsset(L"http://github.com/rachitkothadia/FlowGPT/releases/download/v1/file.exe"),"updates confined to own HTTPS release assets");
+    const std::wstring digest(64,L'a');
+    check(releaseChecksum(digest+L"  app.exe\n",L"app.exe")==digest,"checksum exact release file accepted");
+    check(!releaseChecksum(digest+L"  app.exe\n"+digest+L"  app.exe\n",L"app.exe"),"duplicate checksum refused");
+    check(!releaseChecksum(std::wstring(64,L'g')+L"  app.exe\n",L"app.exe"),"nonhex checksum refused");
+    check(!releaseChecksum(digest+L"  other.exe\n",L"app.exe"),"missing filename checksum refused");
     std::cout << count << " portable core checks passed\n";
 }

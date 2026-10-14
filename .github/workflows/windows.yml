@@ -76,10 +76,31 @@ jobs:
           if (-not $nativePassed) { throw 'Native fixtures failed; UI lifecycle was checked separately' }
       - name: Build EXE installer
         shell: pwsh
+        env:
+          FLOW_WINDOWS_PFX: ${{ secrets.WINDOWS_SIGNING_PFX_BASE64 }}
+          FLOW_WINDOWS_PFX_PASSWORD: ${{ secrets.WINDOWS_SIGNING_PFX_PASSWORD }}
         run: |
-          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" Windows/Installer/FlowGPT.iss
+          if ($env:FLOW_WINDOWS_PFX) {
+            $pfx = Join-Path $env:RUNNER_TEMP 'flowgpt-publisher.pfx'
+            [IO.File]::WriteAllBytes($pfx,[Convert]::FromBase64String($env:FLOW_WINDOWS_PFX))
+            $password = ConvertTo-SecureString $env:FLOW_WINDOWS_PFX_PASSWORD -AsPlainText -Force
+            $cert = Import-PfxCertificate -FilePath $pfx -Password $password -CertStoreLocation Cert:\CurrentUser\My
+            $env:FLOW_WINDOWS_CERT_THUMBPRINT = $cert.Thumbprint
+            Remove-Item $pfx
+            & Windows/sign-release.ps1 -Artifact Windows/out/x64/Release/FlowGPT.exe
+            $script = (Resolve-Path Windows/sign-release.ps1).Path
+            $signCommand = '/SflowSign=powershell.exe -NoProfile -File $q' + $script + '$q -Artifact $q$f$q'
+            & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /DFLOW_SIGNED $signCommand Windows/Installer/FlowGPT.iss
+          } else {
+            Write-Output 'No publisher certificate configured: building an explicitly unsigned preview.'
+            & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" Windows/Installer/FlowGPT.iss
+          }
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $installer = Get-ChildItem release/windows/*Setup.exe | Select-Object -First 1
+          if ($env:FLOW_WINDOWS_PFX) {
+            & Windows/sign-release.ps1 -Artifact $installer.FullName
+            Remove-Item "Cert:\CurrentUser\My\$($env:FLOW_WINDOWS_CERT_THUMBPRINT)"
+          }
           $hash = (Get-FileHash $installer.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
           "$hash  $($installer.Name)" | Set-Content release/windows/SHA256SUMS.txt -Encoding utf8NoBOM
       - name: Verify installed payload and uninstall

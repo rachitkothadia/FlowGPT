@@ -14,6 +14,7 @@ class AppController {
     double startAt_=0, stopAt_=0, stableAt_=0, lastHealth_=0, pasteAt_=0, drainedAt_=0;
     std::wstring stable_;
     Recovery recovery_;
+    TranscriptFinalizer finalizer_;
     HWND owner_{};
     void notify()noexcept{try{changed();}catch(...){lastError=E_FAIL;}}
     void command(const std::wstring& action,std::function<void(Json)> fn,const std::wstring& expected=L"") {
@@ -35,7 +36,7 @@ class AppController {
         else if(browser.hasDraft && !busy(session.state))browser.status=L"A ChatGPT draft is present. Clear it before recording.";
         else if(browser.connected)browser.status=L"ChatGPT connected";
         if(!busy(session.state)) {
-            if(ready&&!temporary&&!browser.hasDraft)browser.call(L"prepare",[](Json){});
+            if(ready&&!temporary&&!browser.hasDraft&&!cleanupPending_)browser.call(L"prepare",[](Json){});
             if(browser.connected)recovery_.ready();return;
         }
         if(browser.needsLogin){fail(L"Open Manage connection and sign in to ChatGPT");return;}
@@ -59,13 +60,13 @@ class AppController {
             drainedAt_=now();
             if(state.GetNamedBoolean(L"recording",false)){command(L"stop",[this](Json){stopSent_=true;stopAcknowledgedAt=now();});return;}
             stopSent_=true;
+            stopAcknowledgedAt=now();
         }
         if(stopSent_&&ready&&!state.GetNamedBoolean(L"recording",false)&&!state.GetNamedBoolean(L"transcribing",false)) {
             auto text=std::wstring(state.GetNamedString(L"text",L""));
             if(text.empty()){fail(L"No speech returned. Nothing was saved or pasted.");return;}
-            if(text!=stable_){stable_=text;stableAt_=now();return;}
-            if(now()-stableAt_>=0.2&&!commandPending_&&!targetPending_)complete(text);
-        }else stableAt_=0;
+            if(finalizer_.accept(text,true,false,false,now())&&!commandPending_&&!targetPending_)complete(text);
+        }else finalizer_.reset();
     }
     void complete(const std::wstring& raw) {
         phase_=4;
@@ -104,10 +105,11 @@ public:
     ~AppController(){session.cancel();++cleanupGeneration_;changed=[]{};microphone.stop();insertion.cancel(owner_);browser.close();}
     void begin(bool preview=false) {
         if(session.state==State::starting||session.state==State::recording){finish();return;}
-        if(!historyReady_){message=L"Resolve local history storage before recording";changed();return;}
+        if(!historyReady_){message=L"Resolve local history storage before recording";notify();return;}
         if(busy(session.state))return;
         DWORD pid{};GetWindowThreadProcessId(GetForegroundWindow(),&pid);preview=preview||pid==GetCurrentProcessId();
         session.begin(preview);result.clear();draftNotice.clear();stable_.clear();phase_=0;frozen_=stopSent_=false;queryPending_=feedPending_=commandPending_=false;pasteAt_=0;drainedAt_=0;startAt_=now();recorderMs=0;
+        finalizer_.reset();
         message=L"Starting microphone…";
         // Capture must not wait for cross-process UI Automation providers.
         textReadyAt=historySavedAt=pasteDeliveredAt=stopAcknowledgedAt=0;
@@ -116,21 +118,21 @@ public:
         browser.active=true;browser.hide();notify();
     }
     void finish() {
-        if(session.state==State::starting){session.stopRequested=true;microphone.stop();session.state=State::transcribing;stopAt_=now();message=L"Finishing captured speech…";changed();return;}
-        if(!session.stop())return;microphone.stop();stopAt_=now();message=L"Waiting for ChatGPT transcription…";changed();
+        if(session.state==State::starting){session.stopRequested=true;microphone.stop();session.state=State::transcribing;stopAt_=now();message=L"Finishing captured speech…";notify();return;}
+        if(!session.stop())return;microphone.stop();stopAt_=now();message=L"Waiting for ChatGPT transcription…";notify();
     }
     void fail(const std::wstring& error) {
         bool owned=browser.active;session.cancel();++cleanupGeneration_;cleanupPending_=false;targetPending_=pastePending_=false;microphone.stop();insertion.cancel(owner_);browser.active=false;session.state=State::error;message=error;phase_=4;queryPending_=feedPending_=commandPending_=false;
         if(owned&&browser.ready()){browser.call(L"cancel",[](Json){});browser.call(L"endAudio",[](Json){});}notify();
     }
-    void cancel() { fail(L"Dictation cancelled");session.state=State::cancelled;changed(); }
+    void cancel() { fail(L"Dictation cancelled");session.state=State::cancelled;notify(); }
     void tickImpl() {
         if(restoreAt_&&now()>=restoreAt_){restoreAt_=0;insertion.restoreLater(owner_);}
         browser.tick();
         if(targetPending_){auto captured=insertion.captured();if(captured.has_value()){targetPending_=false;if(!*captured){fail(L"Click an editable text area, then use your shortcut. This field may not support automatic insertion.");return;}}}
         if(busy(session.state)&&session.state!=State::inserting) {
             if(FAILED(microphone.error())){fail(L"Microphone access failed or device disconnected. Check Windows microphone privacy and selected device.");return;}
-            if(session.state==State::starting&&microphone.firstMs()>0){session.state=State::recording;message=L"Recording your voice";changed();}
+            if(session.state==State::starting&&microphone.firstMs()>0){session.state=State::recording;message=L"Recording your voice";notify();}
             if(session.state==State::starting&&now()-startAt_>3){fail(L"No microphone frames arrived. Check Windows microphone privacy and device.");return;}
             if(phase_<3&&now()-startAt_>20){fail(L"ChatGPT recorder did not initialize within 20 seconds. Reconnect and retry.");return;}
             if(session.state==State::transcribing&&now()-stopAt_>150){fail(L"Transcription timed out. Check the saved browser draft.");return;}
@@ -152,6 +154,6 @@ public:
         if(inTick_)return;inTick_=true;struct Reset{bool& flag;~Reset(){flag=false;}}reset{inTick_};
         try{tickImpl();}catch(const winrt::hresult_error& e){lastError=e.code().value;try{fail(L"A recording operation failed. Any saved text remains in History.");}catch(...){session.cancel();session.state=State::error;}}catch(...){lastError=E_FAIL;try{fail(L"A recording operation failed. Any saved text remains in History.");}catch(...){session.cancel();session.state=State::error;}}
     }
-    std::wstring diagnostics() const {Json o;o.Insert(L"version",JValue::CreateStringValue(L"1.0.0-windows-preview"));o.Insert(L"architecture",JValue::CreateStringValue(L"x64"));o.Insert(L"state",JValue::CreateNumberValue(int(session.state)));o.Insert(L"hotkeyRegistered",JValue::CreateBooleanValue(hotkeyReady));o.Insert(L"connected",JValue::CreateBooleanValue(browser.connected));o.Insert(L"firstAudioMs",JValue::CreateNumberValue(microphone.firstMs()));o.Insert(L"recorderStartMs",JValue::CreateNumberValue(recorderMs));o.Insert(L"historyEntries",JValue::CreateNumberValue(double(store.entries.size())));o.Insert(L"captureError",JValue::CreateNumberValue(microphone.error()));return std::wstring(o.Stringify());}
+    std::wstring diagnostics() const {Json o;o.Insert(L"version",JValue::CreateStringValue(L"1.1.0-windows-preview"));o.Insert(L"architecture",JValue::CreateStringValue(L"x64"));o.Insert(L"state",JValue::CreateNumberValue(int(session.state)));o.Insert(L"hotkeyRegistered",JValue::CreateBooleanValue(hotkeyReady));o.Insert(L"connected",JValue::CreateBooleanValue(browser.connected));o.Insert(L"firstAudioMs",JValue::CreateNumberValue(microphone.firstMs()));o.Insert(L"recorderStartMs",JValue::CreateNumberValue(recorderMs));o.Insert(L"historyEntries",JValue::CreateNumberValue(double(store.entries.size())));o.Insert(L"captureError",JValue::CreateNumberValue(microphone.error()));o.Insert(L"lastError",JValue::CreateNumberValue(lastError));auto elapsed=[](double end,double start){return end>0&&start>0?std::max(0.0,(end-start)*1000):0.0;};o.Insert(L"stopAcknowledgementMs",JValue::CreateNumberValue(elapsed(stopAcknowledgedAt,stopAt_)));o.Insert(L"providerCompletionMs",JValue::CreateNumberValue(elapsed(textReadyAt,stopAt_)));o.Insert(L"historySaveMs",JValue::CreateNumberValue(elapsed(historySavedAt,textReadyAt)));o.Insert(L"insertionMs",JValue::CreateNumberValue(elapsed(pasteDeliveredAt,historySavedAt)));return std::wstring(o.Stringify());}
 };
 }

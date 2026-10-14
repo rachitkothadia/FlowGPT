@@ -38,6 +38,7 @@ private:
     State state_;
     std::thread thread_;
     std::wstring assetUrl_,checksumUrl_;
+    std::wstring verifiedDigest_;
     void launch(std::function<void()> task){if(thread_.joinable())thread_.join();thread_=std::thread([this,task]{HRESULT init=CoInitializeEx(nullptr,COINIT_MULTITHREADED);try{task();}catch(...){std::lock_guard lock(mutex_);state_.busy=false;state_.message=L"Could not reach the update server. Check your internet connection and try again.";}if(SUCCEEDED(init))CoUninitialize();});}
 public:
     ~Updates(){if(thread_.joinable())thread_.join();}
@@ -63,19 +64,18 @@ public:
     void download(){
         std::wstring url,checksum,file;{std::lock_guard lock(mutex_);if(state_.busy||!state_.available)return;state_.busy=true;state_.message=L"Downloading and verifying the update…";url=assetUrl_;checksum=checksumUrl_;file=state_.file;}
         launch([this,url,checksum,file]{
-            auto sums=updateText(checksum);std::wstring expected;
-            size_t start=0;while(start<sums.size()){auto end=sums.find(L'\n',start);auto line=sums.substr(start,end==std::wstring::npos?std::wstring::npos:end-start);if(!line.empty()&&line.back()==L'\r')line.pop_back();
-                if(line.size()>66&&line.substr(66)==file&&line[64]==L' '&&(line[65]==L' '||line[65]==L'*'))expected=line.substr(0,64);
-                if(end==std::wstring::npos)break;start=end+1;}
-            if(expected.size()!=64)throw std::runtime_error("Release checksum missing");
-            auto bytes=updateRequest(url,256*1024*1024);if(bytes.size()<2||bytes[0]!='M'||bytes[1]!='Z'||updateSha256(bytes)!=expected)throw std::runtime_error("Installer checksum mismatch");
+            auto expected=releaseChecksum(updateText(checksum),file);
+            if(!expected)throw std::runtime_error("Release checksum missing or ambiguous");
+            auto bytes=updateRequest(url,256*1024*1024);if(bytes.size()<2||bytes[0]!='M'||bytes[1]!='Z'||updateSha256(bytes)!=*expected)throw std::runtime_error("Installer checksum mismatch");
             auto directory=dataPath()/L"Updates";std::filesystem::create_directories(directory);auto target=directory/file;auto temporary=directory/(file+L".partial");
             {std::ofstream stream(temporary,std::ios::binary);stream.write(reinterpret_cast<const char*>(bytes.data()),std::streamsize(bytes.size()));stream.flush();if(!stream)throw std::runtime_error("Update could not be saved");}
             if(!MoveFileExW(temporary.c_str(),target.c_str(),MOVEFILE_REPLACE_EXISTING|MOVEFILE_WRITE_THROUGH))winrt::throw_last_error();
-            std::lock_guard lock(mutex_);state_.busy=false;state_.downloaded=true;state_.installer=target;state_.message=L"Update verified. Install it to keep your history and connection.";
+            std::lock_guard lock(mutex_);verifiedDigest_=*expected;state_.busy=false;state_.downloaded=true;state_.installer=target;state_.message=L"Update verified. Install it to keep your history and connection.";
         });
     }
     bool install(HWND owner){auto s=state();if(s.busy||!s.downloaded||s.installer.empty())return false;
+        try{auto size=std::filesystem::file_size(s.installer);if(size<2||size>256*1024*1024)return false;std::ifstream stream(s.installer,std::ios::binary);std::vector<unsigned char> bytes(size);stream.read(reinterpret_cast<char*>(bytes.data()),std::streamsize(size));
+            std::wstring expected;{std::lock_guard lock(mutex_);expected=verifiedDigest_;}if(!stream||bytes[0]!='M'||bytes[1]!='Z'||updateSha256(bytes)!=expected)return false;}catch(...){return false;}
         return reinterpret_cast<INT_PTR>(ShellExecuteW(owner,L"open",s.installer.c_str(),nullptr,nullptr,SW_SHOWNORMAL))>32;}
 };
 }

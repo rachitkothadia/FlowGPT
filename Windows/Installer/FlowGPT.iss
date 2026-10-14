@@ -20,6 +20,10 @@ CloseApplications=yes
 RestartApplications=no
 UninstallDisplayIcon={app}\FlowGPT.exe
 LicenseFile=..\..\LICENSE
+#ifdef FLOW_SIGNED
+SignTool=flowSign
+SignedUninstaller=yes
+#endif
 
 [Files]
 Source: "..\out\x64\Release\*"; DestDir: "{app}"; Excludes: "*.pdb,native-tests.json,ui-*.json,ui-*.txt,ui-*.png"; Flags: ignoreversion recursesubdirs createallsubdirs
