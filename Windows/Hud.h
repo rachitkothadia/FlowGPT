@@ -50,7 +50,7 @@ class Hud {
             Gdiplus::Bitmap surface(width,height,width*4,PixelFormat32bppPARGB,static_cast<BYTE*>(pixels));
             Gdiplus::Graphics g(&surface);g.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);g.SetPixelOffsetMode(Gdiplus::PixelOffsetModeHighQuality);
             float scale=float(height)/32.0f,diameter=float(height)-2.0f;
-            Gdiplus::GraphicsPath shape;shape.AddArc(1,1,diameter,diameter,90,180);shape.AddArc(float(width)-diameter-1,1,diameter,diameter,270,180);shape.CloseFigure();
+            Gdiplus::GraphicsPath shape;shape.AddArc(1.0f,1.0f,diameter,diameter,90.0f,180.0f);shape.AddArc(float(width)-diameter-1.0f,1.0f,diameter,diameter,270.0f,180.0f);shape.CloseFigure();
             Gdiplus::LinearGradientBrush background(Gdiplus::PointF(0,0),Gdiplus::PointF(0,float(height)),Gdiplus::Color(245,32,38,35),Gdiplus::Color(245,16,20,18));
             g.FillPath(&background,&shape);Gdiplus::Pen edge(Gdiplus::Color(55,210,231,221),1.0f);g.DrawPath(&edge,&shape);
             Gdiplus::Pen ink(Gdiplus::Color(235,230,241,235),1.8f*scale);ink.SetStartCap(Gdiplus::LineCapRound);ink.SetEndCap(Gdiplus::LineCapRound);
