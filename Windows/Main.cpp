@@ -24,6 +24,16 @@ namespace {
 constexpr UINT TrayMessage=WM_APP+3;
 bool smokeLaunch=false;
 void stage(const std::wstring& text){if(smokeLaunch)flow::atomicWrite(std::filesystem::path(flow::exePath()).parent_path()/L"ui-stage.txt",text);}
+LONG CALLBACK crashEvidence(EXCEPTION_POINTERS* error){
+    if(!smokeLaunch||!error||!error->ExceptionRecord||error->ExceptionRecord->ExceptionCode!=EXCEPTION_ACCESS_VIOLATION)return EXCEPTION_CONTINUE_SEARCH;
+    try{flow::Json report;auto base=reinterpret_cast<uintptr_t>(GetModuleHandleW(nullptr));
+        report.Insert(L"code",flow::JValue::CreateNumberValue(error->ExceptionRecord->ExceptionCode));
+        report.Insert(L"moduleOffset",flow::JValue::CreateNumberValue(double(reinterpret_cast<uintptr_t>(error->ExceptionRecord->ExceptionAddress)-base)));
+        void* frames[32]{};USHORT count=CaptureStackBackTrace(0,32,frames,nullptr);winrt::Windows::Data::Json::JsonArray offsets;
+        for(USHORT i=0;i<count;++i){MEMORY_BASIC_INFORMATION region{};if(VirtualQuery(frames[i],&region,sizeof(region))&&region.AllocationBase==reinterpret_cast<void*>(base))offsets.Append(flow::JValue::CreateNumberValue(double(reinterpret_cast<uintptr_t>(frames[i])-base)));}
+        report.Insert(L"stackOffsets",offsets);flow::atomicWrite(std::filesystem::path(flow::exePath()).parent_path()/L"ui-crash.json",std::wstring(report.Stringify()));
+    }catch(...){}return EXCEPTION_CONTINUE_SEARCH;
+}
 struct App : ApplicationT<App,winrt::Microsoft::UI::Xaml::Markup::IXamlMetadataProvider> {
     winrt::Microsoft::UI::Xaml::XamlTypeInfo::XamlControlsXamlMetaDataProvider metadata{nullptr};
     Window window{nullptr};NavigationView navigation{nullptr};StackPanel content{nullptr};TextBlock status{nullptr},updateStatus{nullptr};
@@ -99,6 +109,7 @@ struct App : ApplicationT<App,winrt::Microsoft::UI::Xaml::Markup::IXamlMetadataP
         UINT modifiers=hotkeyChoice>=2?MOD_CONTROL:MOD_CONTROL|MOD_ALT;controller->hotkeyReady=RegisterHotKey(hwnd,1,modifiers|MOD_NOREPEAT,key)!=FALSE;
     }
     void verifyUI(){
+        stage(L"Verifying UI phase "+std::to_wstring(smokePhase));
         if(flow::now()<smokeNext)return;auto check=[&](const wchar_t* name,bool good){uiChecks.Insert(name,flow::JValue::CreateBooleanValue(good));};
         if(smokePhase==0){
             check(background?L"startupWindowHidden":L"nativeWinUIWindowVisible",background?!IsWindowVisible(hwnd):IsWindowVisible(hwnd)!=FALSE);
@@ -213,6 +224,7 @@ int WINAPI wWinMain(HINSTANCE,HINSTANCE,PWSTR,int){
     if(std::wstring(GetCommandLineW()).find(L"--self-test")!=std::wstring::npos){winrt::init_apartment(winrt::apartment_type::single_threaded);return flow::nativeTests();}
     HANDLE instance=CreateMutexW(nullptr,TRUE,L"Local\\FlowGPT.Windows.Instance");if(GetLastError()==ERROR_ALREADY_EXISTS){HWND existing=FindWindowW(nullptr,L"FlowGPT");if(existing){ShowWindow(existing,SW_RESTORE);SetForegroundWindow(existing);}if(instance)CloseHandle(instance);return 0;}
     smokeLaunch=std::wstring(GetCommandLineW()).find(L"--ui-smoke")!=std::wstring::npos;
+    if(smokeLaunch)AddVectoredExceptionHandler(1,crashEvidence);
     try{winrt::init_apartment(winrt::apartment_type::single_threaded);stage(L"Entering Application.Start");winrt::com_ptr<App> app;Application::Start([&app](auto&&){app=winrt::make_self<App>();});}
     catch(const winrt::hresult_error& e){if(smokeLaunch)flow::atomicWrite(std::filesystem::path(flow::exePath()).parent_path()/L"ui-startup-error.txt",std::wstring(e.message()));else MessageBoxW(nullptr,e.message().c_str(),L"FlowGPT could not start",MB_ICONERROR);if(instance)CloseHandle(instance);return 1;}
     catch(...){MessageBoxW(nullptr,L"FlowGPT could not start. Reinstall the complete application.",L"FlowGPT",MB_ICONERROR);if(instance)CloseHandle(instance);return 1;}
