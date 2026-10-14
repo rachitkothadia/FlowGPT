@@ -133,4 +133,15 @@ struct BrowserDictationTests {
         session.toggle(); await wait(.recording, session); session.finish(); await wait(.error, session)
         #expect(saved == browser.transcript && session.text == browser.transcript && browser.discards == 1)
     }
+    @Test @MainActor func presentationKeepsRawAndDiscardsOnlyOwnedUnformattedDraft() async {
+        let browser = FakeBrowser(), insertion = MockInsertion()
+        browser.transcript = "Tasks: 1. shopping 2. Dad ला call कर"
+        let session = BrowserDictationSession(browser: browser, insertion: insertion)
+        var saved: DictationResult?
+        session.saveResult = { saved = $0 }
+        session.toggle(); await wait(.recording, session); session.finish(); await wait(.success, session)
+        #expect(saved?.raw == browser.transcript)
+        #expect(saved?.final == "Tasks:\n1. shopping\n2. Dad ला call कर")
+        #expect(insertion.inserted == [saved!.final] && browser.discards == 1)
+    }
 }

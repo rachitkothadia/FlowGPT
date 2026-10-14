@@ -64,13 +64,14 @@ public enum BrowserBridgeError: LocalizedError, Equatable {
             do {
                 let transcript = try await browser.finish()
                 try Task.checkCancellation(); guard generation == token else { return }
-                text = try TextValidation.validate(transcript)
+                let raw = try TextValidation.validate(transcript)
+                text = ConservativeFormatting.format(raw)
                 // Persist before clearing the owned draft or attempting insertion.
                 // If persistence fails the browser draft is kept for recovery.
-                try await saveResult?(DictationResult(raw: text, final: text, mode: .verbatim))
+                try await saveResult?(DictationResult(raw: raw, final: text, mode: .verbatim))
                 try Task.checkCancellation(); guard generation == token else { return }
                 var draftNotice = ""
-                do { try await browser.discard(text) }
+                do { try await browser.discard(raw) }
                 catch { draftNotice = " · ChatGPT draft kept; clear it before recording again" }
                 try Task.checkCancellation(); guard generation == token else { return }
                 if localPreview { set(.success, "Transcript saved in FlowGpt" + draftNotice); return }

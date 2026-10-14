@@ -119,6 +119,12 @@ import Darwin
         } catch { print("PCM continuity check failed: \(error.localizedDescription)"); exit(1) }
     }
     @MainActor static func main() {
+        if CommandLine.arguments.contains("--office-insertion-check") {
+            let app = NSApplication.shared
+            app.setActivationPolicy(.accessory)
+            OfficeInsertionChecks.run()
+            app.run(); return
+        }
         if CommandLine.arguments.contains("--connection-recovery-check") {
             let app = NSApplication.shared
             app.setActivationPolicy(.accessory)

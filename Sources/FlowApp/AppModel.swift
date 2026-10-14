@@ -221,6 +221,6 @@ import FlowCore
         """
         do { try report.write(to: url, atomically: true, encoding: .utf8) } catch { notice = "Could not save the diagnostic report." }
     }
-    func prepareToTerminate() async { connectionWork?.cancel(); shortcuts.stop(); await session.shutdown(); await historyWork?.value }
+    func prepareToTerminate() async { connectionWork?.cancel(); shortcuts.stop(); await session.shutdown(); await InsertionService.waitForPendingPaste(); await historyWork?.value }
     func shutdown() { connectionWork?.cancel(); shortcuts.stop(); session.cancel() }
 }

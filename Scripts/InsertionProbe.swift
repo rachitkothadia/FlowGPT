@@ -12,6 +12,7 @@ import FlowCore
             let original = try board.snapshot()
             if CommandLine.arguments.contains("--wait") { try await Task.sleep(for: .seconds(5)) }
             let result = try await service.insert("Flow insertion verification.", preserveClipboard: true)
+            await InsertionService.waitForPendingPaste()
             let restored = try board.snapshot() == original
             print("Outcome: \(result == .confirmed ? "confirmed" : "attempted")")
             print("All clipboard formats preserved: \(restored)")

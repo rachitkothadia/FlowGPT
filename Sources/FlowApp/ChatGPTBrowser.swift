@@ -251,19 +251,21 @@ private final class ConnectionWindow: NSWindow {
             throw BrowserBridgeError.unavailable("ChatGPT recording state changed. Check its connection window.")
         }
         let deadline = Date().addingTimeInterval(120)
-        var stable = "", observedAt = Date()
+        var completion = TranscriptCompletion()
         while Date() < deadline {
             try Task.checkCancellation()
             let state = try await evaluate("state")
             let text = (state["text"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             if state["ready"] as? Bool == true, !text.isEmpty {
-                if text != stable { stable = text; observedAt = Date() }
-                else if Date().timeIntervalSince(observedAt) >= 0.6 { return text }
+                if let completed = completion.observe(text: text, ready: true,
+                    transcribing: state["transcribing"] as? Bool == true,
+                    recording: state["recording"] as? Bool == true,
+                    at: Date().timeIntervalSinceReferenceDate) { return completed }
             } else {
-                stable = ""
+                _ = completion.observe(text: text, ready: false, transcribing: true, recording: false, at: Date().timeIntervalSinceReferenceDate)
                 if state["ready"] as? Bool == true { throw BrowserBridgeError.unavailable("ChatGPT returned no speech. No text was saved or pasted.") }
             }
-            try await Task.sleep(for: .milliseconds(150))
+            try await Task.sleep(for: .milliseconds(50))
         }
         throw BrowserBridgeError.unavailable("ChatGPT transcription timed out. Check its browser window; Flow has not pasted anything.")
     }

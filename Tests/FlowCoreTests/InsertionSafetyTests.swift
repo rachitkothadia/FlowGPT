@@ -24,6 +24,24 @@ import Testing
 }
 
 @Suite struct InsertionSafetyTests {
+    @Test func appSwitchDuringProviderReadsRefusesFinalWrite() {
+        for switchDuringWindowRead in [false, true] {
+            var foregroundIsTarget = true
+            let allowed = InsertionSafety.canWriteToCurrentFocus(sameWindow: {
+                if switchDuringWindowRead { foregroundIsTarget = false }
+                return true
+            }, sameFocusedElement: {
+                if !switchDuringWindowRead { foregroundIsTarget = false }
+                return true
+            }, sameForegroundProcess: { foregroundIsTarget })
+            #expect(!allowed)
+        }
+    }
+    @Test func sameProcessWithChangedWindowOrFieldRefusesFinalWrite() {
+        #expect(!InsertionSafety.canWriteToCurrentFocus(sameWindow: { false }, sameFocusedElement: { true }, sameForegroundProcess: { true }))
+        #expect(!InsertionSafety.canWriteToCurrentFocus(sameWindow: { true }, sameFocusedElement: { false }, sameForegroundProcess: { true }))
+        #expect(InsertionSafety.canWriteToCurrentFocus(sameWindow: { true }, sameFocusedElement: { true }, sameForegroundProcess: { true }))
+    }
     @Test func originalFieldRequiresSameWindow() {
         #expect(InsertionSafety.sameTarget(sameElement: true, sameWindow: true, originalIdentifier: nil, currentIdentifier: nil, originalDocument: nil, currentDocument: nil))
         #expect(!InsertionSafety.sameTarget(sameElement: true, sameWindow: false, originalIdentifier: nil, currentIdentifier: nil, originalDocument: nil, currentDocument: nil))

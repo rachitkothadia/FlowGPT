@@ -2,12 +2,15 @@ import AppKit
 import SwiftUI
 import Observation
 import FlowCore
+import ServiceManagement
 
 @MainActor @Observable final class BrowserBridgeModel {
-    let browser = ChatGPTBrowser()
+    let browser: ChatGPTBrowser
     let permissions = Permissions()
     let shortcuts = ShortcutService()
     let session: BrowserDictationSession
+    let updater = MacUpdater()
+    var launchAtLogin = false
     var history: [DictationResult] = []
     var notice = ""
     private(set) var shortcutPresses = 0
@@ -17,6 +20,7 @@ import FlowCore
     @ObservationIgnored private var statePolling: Task<Void, Never>?
     init(enableShortcut: Bool = true, designPreview: Bool = false) {
         isDesignPreview = designPreview
+        browser = ChatGPTBrowser(fixtureHTML: designPreview ? "<html><body>Isolated design fixture</body></html>" : nil)
         session = BrowserDictationSession(browser: browser, insertion: InsertionService())
         let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("Flow", isDirectory: true)
         store = HistoryStore(url: support.appendingPathComponent("browser-history-v1.json"))
@@ -47,6 +51,7 @@ import FlowCore
             permissions.onChange = { [weak self] in self?.configureShortcut() }
         }
         permissions.refresh()
+        launchAtLogin = SMAppService.mainApp.status == .enabled
         browser.restoreConnection()
         statePolling = Task { [weak self] in
             while !Task.isCancelled {
@@ -69,6 +74,15 @@ import FlowCore
         session.toggle(localPreview: inside)
     }
     func stopPolling() { statePolling?.cancel(); statePolling = nil; browser.shutdown() }
+    func setLaunchAtLogin(_ enabled: Bool) {
+        guard !isDesignPreview else { launchAtLogin = enabled; return }
+        do {
+            if enabled { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
+            launchAtLogin = SMAppService.mainApp.status == .enabled
+            if enabled && !launchAtLogin { notice = "Allow FlowGpt in System Settings → General → Login Items." }
+        } catch { notice = "Couldn’t change launch at login. Check System Settings → General → Login Items." }
+    }
+    func refreshLaunchAtLogin() { if !isDesignPreview { launchAtLogin = SMAppService.mainApp.status == .enabled } }
     func writeIntegrationReport() {
         guard CommandLine.arguments.contains("--bridge-integration-check") else { return }
         let report: [String: Any] = ["state": session.state.rawValue, "shortcutPresses": shortcutPresses,
@@ -103,7 +117,7 @@ private struct BridgeHUD: View {
         NSApp.setActivationPolicy(.accessory)
         let checkingWindows = CommandLine.arguments.contains("--bridge-window-check")
         model = BrowserBridgeModel(enableShortcut: !checkingWindows && !CommandLine.arguments.contains("--bridge-no-shortcut"), designPreview: checkingWindows)
-        settings = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 920, height: 700), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        settings = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 850, height: 640), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         settings.title = "FlowGpt"; settings.isReleasedWhenClosed = false
         settings.contentView = NSHostingView(rootView: BrowserBridgeView(model: model)); settings.center()
         settings.minSize = NSSize(width: 760, height: 580)
@@ -144,7 +158,9 @@ private struct BridgeHUD: View {
         let editItem = NSMenuItem(), edit = NSMenu(title: "Edit")
         for (title, action, key) in [("Cut", "cut:", "x"), ("Copy", "copy:", "c"), ("Paste", "paste:", "v"), ("Select All", "selectAll:", "a")] { edit.addItem(NSMenuItem(title: title, action: Selector(action), keyEquivalent: key)) }
         editItem.submenu = edit; main.addItem(editItem); NSApp.mainMenu = main
-        showSettings()
+        let loginLaunch = NSAppleEventManager.shared().currentAppleEvent?.eventID == AEEventID(kAEOpenApplication)
+            && NSAppleEventManager.shared().currentAppleEvent?.paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue == OSType(keyAELaunchedAsLogInItem)
+        if !CommandLine.arguments.contains("--background") && !loginLaunch { showSettings() }
         if checkingWindows { checkWindowLifecycle() }
     }
     private func checkWindowLifecycle() {
@@ -170,11 +186,11 @@ private struct BridgeHUD: View {
     @objc private func connect() { model.browser.show() }
     @objc private func quit() { NSApp.terminate(nil) }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
-    func applicationDidBecomeActive(_ notification: Notification) { model?.permissions.refresh() }
+    func applicationDidBecomeActive(_ notification: Notification) { model?.permissions.refresh(); model?.refreshLaunchAtLogin() }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         model.stopPolling()
         model.shortcuts.stop()
-        Task { await model.session.shutdown(); NSApp.reply(toApplicationShouldTerminate: true) }
+        Task { await model.session.shutdown(); await InsertionService.waitForPendingPaste(); NSApp.reply(toApplicationShouldTerminate: true) }
         return .terminateLater
     }
 }

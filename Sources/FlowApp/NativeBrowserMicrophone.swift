@@ -48,6 +48,7 @@ private final class NativeMicSamples: NSObject, AVCaptureAudioDataOutputSampleBu
 /// Captures locally without waiting for DOM, JavaScript, network or WebKit audio
 /// permissions. Never changes the system's input device or output volume.
 @MainActor final class NativeBrowserMicrophone {
+    private let delegateQueue = DispatchQueue(label: "in.vardaan.flow.capture", qos: .userInteractive)
     private var capture: AVCaptureSession?
     private var samples: NativeMicSamples?
     private var observer: NSObjectProtocol?
@@ -70,7 +71,7 @@ private final class NativeMicSamples: NSObject, AVCaptureAudioDataOutputSampleBu
         let value = AVCaptureSession(), input = try AVCaptureDeviceInput(device: device)
         let output = AVCaptureAudioDataOutput(), sink = NativeMicSamples()
         output.audioSettings = [AVFormatIDKey: kAudioFormatLinearPCM, AVSampleRateKey: 16_000, AVNumberOfChannelsKey: 1, AVLinearPCMBitDepthKey: 32, AVLinearPCMIsFloatKey: true, AVLinearPCMIsBigEndianKey: false, AVLinearPCMIsNonInterleaved: false]
-        output.setSampleBufferDelegate(sink, queue: DispatchQueue(label: "in.vardaan.flow.capture", qos: .userInteractive))
+        output.setSampleBufferDelegate(sink, queue: delegateQueue)
         value.beginConfiguration()
         guard value.canAddInput(input), value.canAddOutput(output) else { value.commitConfiguration(); throw FlowError.recording }
         value.addInput(input); value.addOutput(output); value.commitConfiguration()
@@ -84,8 +85,11 @@ private final class NativeMicSamples: NSObject, AVCaptureAudioDataOutputSampleBu
     func acknowledge() { samples?.acknowledge() }
     func stop() {
         if let observer { NotificationCenter.default.removeObserver(observer); self.observer = nil }
-        samples?.freeze()
-        capture?.stopRunning(); capture = nil
+        // Main-actor owner only; delegate callbacks never synchronously await
+        // this actor. Keep the sink/session alive until queued tail frames finish.
+        AudioCaptureShutdown.stopAndDrain(stopCapture: { capture?.stopRunning() },
+            deliveryQueue: delegateQueue, freezeSamples: { samples?.freeze() })
+        capture = nil
     }
     func cancel() { stop(); samples = nil }
     private static func builtinInputUID() -> String? {

@@ -34,7 +34,7 @@ app="$stage/FlowGpt.app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 lipo -create "$arm_path/FlowGpt" "$x86_path/FlowGpt" -output "$app/Contents/MacOS/FlowGpt"
 cp Resources/Info.plist "$app/Contents/Info.plist"
-cp Docs/FLOWGPT_10.md "$app/Contents/Resources/UserGuide.md"
+cp Docs/MAC_11.md "$app/Contents/Resources/UserGuide.md"
 swift Scripts/make-icon.swift "$stage/Flow.iconset"
 iconutil -c icns "$stage/Flow.iconset" -o "$app/Contents/Resources/Flow.icns"
 
@@ -64,7 +64,7 @@ image_stage="$stage/image"
 mkdir -p "$image_stage"
 ditto "$app" "$image_stage/FlowGpt.app"
 ln -s /Applications "$image_stage/Applications"
-cp Docs/FLOWGPT_10.md "$image_stage/Read Me.md"
+cp Docs/MAC_11.md "$image_stage/Read Me.md"
 hdiutil create -volname "Install FlowGpt $version" -srcfolder "$image_stage" -format UDZO "$candidate_image"
 codesign --force --sign "$FLOW_SIGNING_IDENTITY" "$candidate_image"
 notarize "$candidate_image" release/distribution/notarization-dmg.json
@@ -74,5 +74,5 @@ spctl --assess --type open --context context:primary-signature --verbose=4 "$can
 hdiutil verify "$candidate_image"
 # Replace the public artifact only after every verification succeeded.
 mv -f "$candidate_image" "$image"
-shasum -a 256 "$image" > release/distribution/SHA256SUMS.txt
+shasum -a 256 "${image:t}" > release/distribution/SHA256SUMS.txt
 print "Notarized installer: $image"

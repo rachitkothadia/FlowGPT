@@ -3,10 +3,10 @@ import SwiftUI
 import FlowCore
 
 private enum FlowGptPage: String, CaseIterable, Identifiable {
-    case overview = "Overview", history = "History", settings = "Settings"
+    case overview = "Home", history = "History", settings = "Settings", about = "About"
     var id: Self { self }
     var symbol: String {
-        switch self { case .overview: "waveform"; case .history: "clock"; case .settings: "gearshape" }
+        switch self { case .overview: "waveform"; case .history: "clock"; case .settings: "gearshape"; case .about: "info.circle" }
     }
 }
 
@@ -28,7 +28,7 @@ struct BrowserBridgeView: View {
                 }.listStyle(.sidebar)
                 VStack(alignment: .leading, spacing: 6) {
                     Text(model.isDesignPreview ? "Design preview" : "FlowGpt " + (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"))
-                    Text("Made for your flow.").foregroundStyle(.tertiary)
+                    Text(connected ? "ChatGPT connected" : "Connection needed").foregroundStyle(.tertiary)
                 }.font(.caption).foregroundStyle(.secondary).padding(20)
             }.navigationSplitViewColumnWidth(min: 190, ideal: 206, max: 230)
         } detail: {
@@ -37,6 +37,7 @@ struct BrowserBridgeView: View {
                 case .overview: overview
                 case .history: FlowGptHistoryView(history: model.history)
                 case .settings: settings
+                case .about: about
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -55,14 +56,14 @@ struct BrowserBridgeView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 26) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Speak. Keep your flow.").font(.system(size: 29, weight: .semibold)).tracking(-0.7)
-                    Text("Your words, right where you need them.").font(.title3).foregroundStyle(.secondary)
+                    Text("Dictate anywhere.").font(.system(size: 27, weight: .semibold)).tracking(-0.5)
+                    Text("Click a text field, then press Fn + Space.").foregroundStyle(.secondary)
                 }
                 FlowGptCard {
                     VStack(alignment: .leading, spacing: 20) {
                         HStack {
                             VStack(alignment: .leading, spacing: 6) {
-                                Text("Your dictation shortcut").font(.headline)
+                                Text("Speak with a shortcut").font(.headline)
                                 Text("Press once to record. Press again to finish.").foregroundStyle(.secondary)
                             }
                             Spacer(minLength: 12)
@@ -72,19 +73,18 @@ struct BrowserBridgeView: View {
                         HStack(spacing: 12) {
                             Image(systemName: connected && allPermissions ? "checkmark.circle.fill" : "circle.dotted")
                                 .foregroundStyle(connected && allPermissions ? accent : .secondary)
-                            Text(connected && allPermissions ? "Ready when you are" : "Finish setting up to dictate anywhere").foregroundStyle(.secondary)
+                            Text(connected && allPermissions ? "Ready to record" : "Finish setup to start recording").foregroundStyle(.secondary)
                             Spacer(minLength: 8)
                             if !connected || !allPermissions { Button("Finish setup") { selection = .settings }.controlSize(.small) }
                         }
                         HStack {
-                            Button(model.session.state == .recording ? "Finish dictation" : "Test dictation here") { model.toggle(localPreview: true) }
+                            Button(model.session.state == .recording ? "Finish recording" : "Try recording") { model.toggle(localPreview: true) }
                                 .buttonStyle(.borderedProminent).controlSize(.large)
                                 .disabled(model.session.state.busy && model.session.state != .recording)
                             if model.session.state.busy { Button("Cancel") { model.session.cancel() }.controlSize(.large) }
                             Spacer()
-                            Label("Fn + Space", systemImage: "keyboard").font(.caption).foregroundStyle(.secondary)
                         }
-                        Text("This test saves a preview here. To dictate into another app, place your cursor there and use the shortcut.")
+                        Text("Try recording saves text here. The shortcut types into the app you’re using.")
                             .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                     }
                 }
@@ -102,7 +102,7 @@ struct BrowserBridgeView: View {
                 if model.history.isEmpty {
                     FlowGptEmptyView(symbol: "text.bubble", title: "A little space for your words", detail: "Your dictations will appear here after you finish speaking.")
                 } else {
-                    ForEach(Array(model.history.prefix(2))) { item in
+                    ForEach(Array(model.history.prefix(1))) { item in
                         FlowGptCard { FlowGptTranscriptView(item: item, compact: true) }
                     }
                 }
@@ -121,8 +121,8 @@ struct BrowserBridgeView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Make yourself at home.").font(.system(size: 27, weight: .semibold)).tracking(-0.5)
-                    Text("Connect once. Keep your permissions in one place.").foregroundStyle(.secondary)
+                    Text("Set up FlowGpt").font(.system(size: 27, weight: .semibold)).tracking(-0.5)
+                    Text("Your connection and recording permissions.").foregroundStyle(.secondary)
                 }
                 FlowGptCard {
                     HStack(alignment: .top, spacing: 14) {
@@ -167,11 +167,42 @@ struct BrowserBridgeView: View {
                     Label("Quit and reopen FlowGpt to activate macOS’s updated permission.", systemImage: "arrow.clockwise.circle")
                         .foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
                 }
-                DisclosureGroup("About your connection and privacy") {
-                    Text("Audio is transcribed by ChatGPT through a saved website session. This is not official OAuth. OpenAI can expire that session and may retain audio, including in Temporary Chat. FlowGpt keeps the latest 100 returned transcripts on this Mac and never sends a ChatGPT message. Short dictation is supported; multi-hour lectures are not.")
-                        .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true).padding(.top, 10)
-                }.font(.callout)
+                FlowGptCard {
+                    Toggle("Start FlowGpt when I log in", isOn: Binding(get: { model.launchAtLogin }, set: { model.setLaunchAtLogin($0) }))
+                    Text("Keep FlowGpt in the menu bar. Closing its window keeps dictation available.").font(.caption).foregroundStyle(.secondary)
+                }
             }.padding(30).frame(maxWidth: 820, alignment: .leading).frame(maxWidth: .infinity)
+        }
+    }
+
+    private var about: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("FlowGpt").font(.system(size: 27, weight: .semibold))
+                    Text("Version " + (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.1.0")).foregroundStyle(.secondary)
+                }
+                FlowGptCard {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Updates").font(.headline)
+                        Text(model.updater.message).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                        HStack {
+                            Button("Check for updates") { Task { await model.updater.check() } }.disabled(model.updater.busy || model.isDesignPreview)
+                            if model.updater.available != nil {
+                                Button("Download & open installer") { Task { await model.updater.downloadAndOpen() } }.buttonStyle(.borderedProminent).disabled(model.updater.busy || model.session.state.busy)
+                            }
+                            if model.updater.busy { ProgressView().controlSize(.small) }
+                        }
+                        Text("The installer’s checksum is verified before it opens. Updates keep your local history and saved connection.").font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Your words stay your words.").font(.headline)
+                    Text("FlowGpt keeps words, repetition, tone, and scripts unchanged. Existing numbered items can be placed on separate lines. The original returned transcript is always available in History.").foregroundStyle(.secondary)
+                    Text("ChatGPT transcribes audio through a saved website session, which may expire. FlowGpt keeps the latest 100 transcripts on this Mac. It never sends a chat message. Multi-hour recordings are not supported.").foregroundStyle(.secondary)
+                    Link("GitHub Releases", destination: URL(string: "https://github.com/rachitkothadia/FlowGPT/releases")!)
+                }.font(.callout).fixedSize(horizontal: false, vertical: true)
+            }.padding(30).frame(maxWidth: 720, alignment: .leading).frame(maxWidth: .infinity)
         }
     }
 
@@ -222,8 +253,18 @@ private struct FlowGptTranscriptView: View {
             }.font(.caption).foregroundStyle(.secondary)
             if compact { Text(item.final).lineLimit(3).lineSpacing(4).frame(maxWidth: .infinity, alignment: .leading) }
             else { Text(item.final).lineSpacing(5).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading).fixedSize(horizontal: false, vertical: true) }
+            if !compact {
+                HStack {
+                    Button("Copy text") { copy(item.final) }.controlSize(.small)
+                    if item.raw != item.final { Button("Copy original") { copy(item.raw) }.controlSize(.small) }
+                }
+                if item.raw != item.final {
+                    DisclosureGroup("Original transcript") { Text(item.raw).textSelection(.enabled).padding(.top, 8) }
+                }
+            }
         }
     }
+    private func copy(_ text: String) { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string) }
 }
 
 private struct FlowGptHistoryView: View {
