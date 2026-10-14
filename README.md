@@ -156,6 +156,8 @@ In version 1.1, text-field checks run separately from the Windows UI, clipboard 
 
 ### Verification
 
+Version 1.3 uses one formatter on both platforms. Its [behavior, test cases and release verification](Docs/FLOWGPT_13.md) cover automatic circle lists, sequences, currency amounts and content-preservation cases. The measurements below are historical 1.1 results, not newly measured microphone or Office performance for 1.3.
+
 | Check | Result |
 | --- | --- |
 | Mac 1.1 software suite | **120 tests passed** |
