@@ -55,7 +55,7 @@ struct App : ApplicationT<App,winrt::Microsoft::UI::Xaml::Markup::IXamlMetadataP
     winrt::Microsoft::UI::Xaml::Markup::IXamlType GetXamlType(hstring const& name){return provider().GetXamlType(name);}
     com_array<winrt::Microsoft::UI::Xaml::Markup::XmlnsDefinition> GetXmlnsDefinitions(){return provider().GetXmlnsDefinitions();}
     void recover(long code)noexcept{try{if(controller){controller->lastError=code;controller->fail(L"An operation failed. Your saved text remains in History.");}hud.update(flow::State::error,0);}catch(...){}}
-    template<typename F>void safely(F fn)noexcept{try{fn();}catch(const hresult_error& e){recover(e.code().value);}catch(...){recover(E_FAIL);}}
+    template<typename F>void safely(F fn)noexcept{if(quitting)return;try{fn();}catch(const hresult_error& e){recover(e.code().value);}catch(...){recover(E_FAIL);}}
     static TextBlock label(const std::wstring& value,double size=14,bool muted=false){
         TextBlock t;t.Text(value);t.FontSize(size);t.TextWrapping(TextWrapping::Wrap);if(muted)t.Opacity(0.68);return t;
     }
