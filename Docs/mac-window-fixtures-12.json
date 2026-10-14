@@ -1,0 +1,16 @@
+{
+  "checks": {
+    "closedSettingsRemainResident": true,
+    "compactStrip": true,
+    "menuBarWithoutDock": true,
+    "nonactivatingStrip": true,
+    "noReopenAfterattempted": true,
+    "noReopenAftercancelled": true,
+    "noReopenAftererror": true,
+    "noReopenAftersuccess": true,
+    "stripAtUsableBottomEdge": true,
+    "stripVisibleDuringStartup": true
+  },
+  "passed": true,
+  "type": "Native window lifecycle fixture; no microphone, account or permissions changed"
+}

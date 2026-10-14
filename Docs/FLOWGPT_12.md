@@ -30,3 +30,19 @@ Windows keeps its browser profile and settings in the same per-user directory. T
 The shared fixtures test output and repeated formatting on both platforms, including arbitrary tools and shopping items, English, Hindi, Marathi, Hinglish, Gujarati, protected literals, ordinary prose, technical corrections and the exact reported website example. Native policies, session cancellation, history and installer lifecycle suites run separately.
 
 Windows testing uses a Windows runner, isolated WebView2 profile, synthetic audio and disposable editors. It does not establish physical microphone or real ChatGPT-account success on every friend's laptop. No claim of perfect ASR or universal formatting accuracy is made.
+
+## 1.2 release results
+
+- 123 Swift tests passed across 17 suites.
+- 35 shared output fixtures passed on both platforms, with exact expected results and idempotence checks.
+- 149 portable C++ checks passed.
+- Packaged Mac: 50 isolated WebKit/browser checks and 10 window lifecycle checks passed.
+- Windows native/UI/installer fixture reports are saved alongside this document. Both GitHub platform builds passed for application source `ae932f0d49640206a6c12d97900020078ef3a2fd`.
+- A 1,000-item release-mode formatting benchmark took about 6 ms on the development Mac, retaining all items. This measures local formatting, not speech recognition or network delay.
+
+Installers:
+
+| Platform | SHA-256 |
+|---|---|
+| Mac arm64 | `858692e384c2533d2f18ce4e4f739d371e015f74ee1a687585a109d17b9956bc` |
+| Windows x64 | `7ef8326922c08e8ad0ae93770687a411ba229f9ec0415aa32e7cf9b07fb33acd` |
