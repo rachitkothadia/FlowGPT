@@ -106,7 +106,7 @@ inline std::string spokenSequence(const std::string& s) {
     }
     auto intro=trim(s.substr(0,positions.front()));if(!intro.empty()&&intro.back()!=':')intro+=':';
     std::string out=intro;
-    for(size_t i=0;i<positions.size();++i)out+="\n"+std::to_string(i+1)+". "+trim(s.substr(positions[i],(i+1<positions.size()?positions[i+1]:tail)-positions[i]));
+    for(size_t i=0;i<positions.size();++i){if(!out.empty())out+='\n';out+=std::to_string(i+1)+". "+trim(s.substr(positions[i],(i+1<positions.size()?positions[i+1]:tail)-positions[i]));}
     if(tail<s.size())out+="\n\n"+capitalize(trim(s.substr(tail)));
     return out;
 }
