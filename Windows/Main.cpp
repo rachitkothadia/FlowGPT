@@ -40,7 +40,7 @@ struct App : ApplicationT<App,winrt::Microsoft::UI::Xaml::Markup::IXamlMetadataP
     Button updateAction{nullptr};
     DispatcherTimer timer{nullptr};HWND hwnd{};NOTIFYICONDATAW tray{};HICON icon{};flow::Hud hud;flow::Updates updates;
     std::unique_ptr<flow::AppController> controller;
-    std::wstring page=L"Home";bool background=false,preview=false,smoke=false,quitting=false,trayReady=false;unsigned hotkeyChoice=0;double launched=flow::now();
+    std::wstring page=L"Home";bool background=false,preview=false,smoke=false,quitting=false,trayReady=false,tickActive=false;unsigned hotkeyChoice=0;double launched=flow::now();
     std::vector<std::pair<std::wstring,std::wstring>> devices;
     flow::Json uiChecks;int smokePhase=0;double smokeNext=0;TextBox searchBox{nullptr};StackPanel historyList{nullptr};
     App(){
@@ -101,6 +101,7 @@ struct App : ApplicationT<App,winrt::Microsoft::UI::Xaml::Markup::IXamlMetadataP
         auto appearance=controller->store.settings.GetNamedString(L"appearance",L"System");navigation.RequestedTheme(appearance==L"Dark"?ElementTheme::Dark:appearance==L"Light"?ElementTheme::Light:ElementTheme::Default);
         addTray();navigation.SelectedItem(navigation.MenuItems().GetAt(0));
         timer=DispatcherTimer();timer.Interval(std::chrono::milliseconds(50));timer.Tick([this](auto&&,auto&&){
+            if(tickActive)return;tickActive=true;struct Reset{bool& value;~Reset(){value=false;}}reset{tickActive};
             safely([this]{if(!controller||quitting)return;controller->tick();renderStatus();hud.update(controller->session.state,controller->microphone.audio.level());renderUpdates();if(smoke&&flow::now()-launched>12)verifyUI();});
         });timer.Start();render();window.Activate();stage(L"Window activated");if(background)hide();
     }
@@ -211,7 +212,7 @@ struct App : ApplicationT<App,winrt::Microsoft::UI::Xaml::Markup::IXamlMetadataP
         content.Children().Append(heading(L"Microphone",17));ComboBox inputs;inputs.HorizontalAlignment(HorizontalAlignment::Stretch);inputs.Items().Append(box_value(L"System default"));
         try{devices=flow::microphones();for(auto& d:devices)inputs.Items().Append(box_value(d.second));}catch(...){devices.clear();}
         int selected=0;auto stored=controller->store.settings.GetNamedString(L"microphone",L"");for(size_t i=0;i<devices.size();++i)if(devices[i].first==stored)selected=int(i)+1;inputs.SelectedIndex(selected);inputs.IsEnabled(!busy());
-        inputs.SelectionChanged([this,inputs](auto&&,auto&&){safely([&]{int index=inputs.SelectedIndex();if(index<0||busy())return;controller->store.setting(L"microphone",flow::JValue::CreateStringValue(index==0?L"":devices[size_t(index-1)].first));});});content.Children().Append(inputs);
+        inputs.SelectionChanged([this,inputs,options=devices](auto&&,auto&&){safely([&]{int index=inputs.SelectedIndex();if(index<0||busy()||size_t(index)>options.size())return;controller->store.setting(L"microphone",flow::JValue::CreateStringValue(index==0?L"":options[size_t(index-1)].first));});});content.Children().Append(inputs);
         content.Children().Append(button(L"Microphone permissions",[]{ShellExecuteW(nullptr,L"open",L"ms-settings:privacy-microphone",nullptr,nullptr,SW_SHOWNORMAL);}));
         content.Children().Append(heading(L"Shortcut",17));ComboBox shortcut;for(auto s:{L"Ctrl + Alt + Space",L"Ctrl + Alt + D",L"Ctrl + F8",L"Ctrl + Space"})shortcut.Items().Append(box_value(s));shortcut.SelectedIndex(int(hotkeyChoice));shortcut.IsEnabled(!busy());
         shortcut.SelectionChanged([this,shortcut](auto&&,auto&&){safely([&]{if(shortcut.SelectedIndex()<0||busy())return;hotkeyChoice=unsigned(shortcut.SelectedIndex());registerHotkey();controller->store.setting(L"shortcut",flow::JValue::CreateNumberValue(hotkeyChoice));renderStatus();});});content.Children().Append(shortcut);
