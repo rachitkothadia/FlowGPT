@@ -14,7 +14,7 @@ Native dictation for macOS and Windows that brings ChatGPT's Dictate recorder to
 [![Windows build](https://github.com/rachitkothadia/FlowGPT/actions/workflows/windows.yml/badge.svg)](https://github.com/rachitkothadia/FlowGPT/actions/workflows/windows.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-548B78)](LICENSE)
 
-[Download for Mac](https://github.com/rachitkothadia/FlowGPT/releases/download/v1.1.1/FlowGpt-1.1.1-arm64.dmg) · [Download for Windows](https://github.com/rachitkothadia/FlowGPT/releases/download/v1.1.1/FlowGPT-1.1.1-Windows-x64-Setup.exe) · [Installation](#installation) · [Features](#features)
+[Download for Mac](https://github.com/rachitkothadia/FlowGPT/releases/download/v1.1.1/FlowGpt-1.1.1-arm64.dmg) · [Download for Windows](https://github.com/rachitkothadia/FlowGPT/releases/download/windows-v1.1.1/FlowGPT-1.1.1-Windows-x64-Setup.exe) · [Installation](#installation) · [Features](#features)
 
 <img src="Docs/assets/overview.png" alt="FlowGPT dark overview showing the Fn + Space shortcut and example history" width="900" />
 
@@ -30,7 +30,7 @@ Choose your computer below. You need internet access and your own ChatGPT accoun
 
 **Works on Windows 11, on an Intel or AMD 64-bit PC.**
 
-1. **[Download FlowGPT for Windows (.exe)](https://github.com/rachitkothadia/FlowGPT/releases/download/v1.1.1/FlowGPT-1.1.1-Windows-x64-Setup.exe).**
+1. **[Download FlowGPT for Windows (.exe)](https://github.com/rachitkothadia/FlowGPT/releases/download/windows-v1.1.1/FlowGPT-1.1.1-Windows-x64-Setup.exe).**
 2. **Install it.** Double-click the downloaded file, follow the installer, then open **FlowGPT** from the Start menu.
 3. **Connect ChatGPT.** Click **Connect ChatGPT**, sign in to your account, then close the connection window.
 4. **Allow your microphone if recording is blocked.** Open **Windows Settings → Privacy & security → Microphone**. Turn on **Microphone access** and **Let desktop apps access your microphone**.
@@ -99,7 +99,7 @@ The installer checks the required Microsoft WebView2 Runtime automatically. Keep
 Each release includes a **SHA256SUMS.txt** file alongside its installer:
 
 - [Mac installer and checksum](https://github.com/rachitkothadia/FlowGPT/releases/tag/v1.1.1)
-- [Windows installer and checksum](https://github.com/rachitkothadia/FlowGPT/releases/tag/v1.1.1)
+- [Windows installer and checksum](https://github.com/rachitkothadia/FlowGPT/releases/tag/windows-v1.1.1)
 
 The shared checksum file contains both installers. On Mac, download it alongside the DMG, run the command below, and compare the DMG hash with its matching entry:
 
