@@ -158,5 +158,20 @@
     "name": "unintroduced conjunctions stay prose",
     "input": "I want to go shopping and fill the form and call my nanny.",
     "expected": "I want to go shopping and fill the form and call my nanny."
+  },
+  {
+    "name": "err is a meaningful verb",
+    "input": "err on the side of caution. um is a hesitation word.",
+    "expected": "err on the side of caution. um is a hesitation word."
+  },
+  {
+    "name": "ambiguous shopping self-correction stays prose",
+    "input": "Shopping list: apples, no actually oranges, and milk.",
+    "expected": "Shopping list: apples, no actually oranges, and milk."
+  },
+  {
+    "name": "literal final period does not swallow prose",
+    "input": "Documents: README.md, CHANGELOG.md, and LICENSE.txt. Call me later.",
+    "expected": "Documents:\n- README.md,\n- CHANGELOG.md,\n- and LICENSE.txt.\n\nCall me later."
   }
 ]

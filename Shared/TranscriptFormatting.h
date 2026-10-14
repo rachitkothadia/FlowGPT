@@ -34,7 +34,7 @@ inline std::vector<bool> protectedBytes(const std::string& s) {
         bool literal=token.find('/')!=std::string::npos||token.find('\\')!=std::string::npos||token.find('@')!=std::string::npos||token.find('_')!=std::string::npos;
         // Filenames, domains, dotted identifiers and decimal numbers.
         for(size_t p=1;p+1<token.size();++p)if(token[p]=='.'&&asciiWord(token[p-1])&&asciiWord(token[p+1]))literal=true;
-        if(literal){size_t last=end;while(last>i&&(s[last-1]==','||s[last-1]==';'||s[last-1]=='!'||s[last-1]=='?'))--last;for(size_t p=i;p<last;++p)mask[p]=true;}i=end;
+        if(literal){size_t last=end;while(last>i&&(s[last-1]==','||s[last-1]=='.'||s[last-1]==';'||s[last-1]=='!'||s[last-1]=='?'))--last;for(size_t p=i;p<last;++p)mask[p]=true;}i=end;
     }
     return mask;
 }
@@ -47,7 +47,8 @@ inline std::string fillers(const std::string& s) {
         auto word=lower(s.substr(i,end-i));bool filler=word=="um"||word=="umm"||word=="uh"||word=="err";
         auto before=filler?lower(trim(s.substr(0,i))):std::string{};
         auto after=filler?lower(trim(s.substr(end))):std::string{};
-        bool context=i==0||(!before.empty()&&(before.back()==','||before.back()=='.'))||begins(after,"and ")||begins(after,"so ");
+        bool meaningful=begins(after,"is ")||begins(after,"means ")||begins(after,"on ")||begins(after,"or ");
+        bool context=!meaningful&&(i==0||(!before.empty()&&(before.back()==','||before.back()=='.'))||begins(after,"and ")||begins(after,"so "));
         if(filler&&context&&!mask[i]&&!code) {
             size_t through=end;if(through<s.size()&&s[through]==',')++through;while(through<s.size()&&(s[through]==' '||s[through]=='\t'))++through;
             out+=s.substr(kept,i-kept);kept=through;i=through;
@@ -113,7 +114,7 @@ inline size_t sentenceEnd(const std::string& s,const std::vector<bool>& mask,siz
 inline bool listItem(const std::string& text) {
     auto t=lower(trim(text));size_t count=1;for(char c:t)if(space(c))++count;
     if(t.empty()||count>16)return false;
-    for(const auto* p:{"when ","if ","i ","and i ","but ","because ","he ","she "})if(begins(t,p))return false;
+    for(const auto* p:{"when ","if ","no ","actually ","wait ","instead ","नहीं ","नाही ","i ","and i ","but ","because ","he ","she "})if(begins(t,p))return false;
     return true;
 }
 inline std::string enumerations(const std::string& s) {

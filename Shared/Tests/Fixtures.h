@@ -119,5 +119,13 @@ Supplies:
 - go shopping
 - and fill the form
 - and call my nanny.)fixture"},
-{R"fixture(unintroduced conjunctions stay prose)fixture",R"fixture(I want to go shopping and fill the form and call my nanny.)fixture",R"fixture(I want to go shopping and fill the form and call my nanny.)fixture"}
+{R"fixture(unintroduced conjunctions stay prose)fixture",R"fixture(I want to go shopping and fill the form and call my nanny.)fixture",R"fixture(I want to go shopping and fill the form and call my nanny.)fixture"},
+{R"fixture(err is a meaningful verb)fixture",R"fixture(err on the side of caution. um is a hesitation word.)fixture",R"fixture(err on the side of caution. um is a hesitation word.)fixture"},
+{R"fixture(ambiguous shopping self-correction stays prose)fixture",R"fixture(Shopping list: apples, no actually oranges, and milk.)fixture",R"fixture(Shopping list: apples, no actually oranges, and milk.)fixture"},
+{R"fixture(literal final period does not swallow prose)fixture",R"fixture(Documents: README.md, CHANGELOG.md, and LICENSE.txt. Call me later.)fixture",R"fixture(Documents:
+- README.md,
+- CHANGELOG.md,
+- and LICENSE.txt.
+
+Call me later.)fixture"}
 }; }
