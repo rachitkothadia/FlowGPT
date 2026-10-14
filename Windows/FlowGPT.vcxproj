@@ -29,12 +29,12 @@
   <PropertyGroup><OutDir>$(MSBuildThisFileDirectory)out\$(Platform)\$(Configuration)\</OutDir><IntDir>$(MSBuildThisFileDirectory)obj\$(Platform)\$(Configuration)\</IntDir></PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile><LanguageStandard>stdcpp20</LanguageStandard><WarningLevel>Level4</WarningLevel><PrecompiledHeader>NotUsing</PrecompiledHeader><AdditionalOptions>/bigobj /utf-8 %(AdditionalOptions)</AdditionalOptions><PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;NOMINMAX;UNICODE;_UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions><AdditionalIncludeDirectories>$(MSBuildThisFileDirectory);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories></ClCompile>
-    <Link><SubSystem>Windows</SubSystem><AdditionalDependencies>user32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comctl32.lib;dwmapi.lib;gdi32.lib;advapi32.lib;propsys.lib;runtimeobject.lib;windowsapp.lib;uiautomationcore.lib;%(AdditionalDependencies)</AdditionalDependencies></Link>
+    <Link><SubSystem>Windows</SubSystem><GenerateDebugInformation>true</GenerateDebugInformation><AdditionalDependencies>user32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comctl32.lib;dwmapi.lib;gdi32.lib;gdiplus.lib;winhttp.lib;bcrypt.lib;advapi32.lib;propsys.lib;runtimeobject.lib;windowsapp.lib;uiautomationcore.lib;%(AdditionalDependencies)</AdditionalDependencies></Link>
     <Manifest><AdditionalManifestFiles>app.manifest;%(AdditionalManifestFiles)</AdditionalManifestFiles></Manifest>
   </ItemDefinitionGroup>
   <ItemGroup><ClCompile Include="Main.cpp" /></ItemGroup>
   <ItemGroup><ResourceCompile Include="App.rc" /></ItemGroup>
-  <ItemGroup><ClInclude Include="Core.h" /><ClInclude Include="Platform.h" /><ClInclude Include="Browser.h" /><ClInclude Include="AppController.h" /><ClInclude Include="Hud.h" /></ItemGroup>
+  <ItemGroup><ClInclude Include="Core.h" /><ClInclude Include="Platform.h" /><ClInclude Include="Browser.h" /><ClInclude Include="AppController.h" /><ClInclude Include="Hud.h" /><ClInclude Include="Insertion.h" /><ClInclude Include="Formatting.h" /><ClInclude Include="Updates.h" /><ClInclude Include="ReleasePolicy.h" /></ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.7.250606001" />
     <PackageReference Include="Microsoft.Windows.CppWinRT" Version="2.0.240405.15" />

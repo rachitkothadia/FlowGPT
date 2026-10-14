@@ -31,7 +31,9 @@ inline int nativeTests(){
         bool launched=CreateProcessW(nullptr,command.data(),nullptr,nullptr,FALSE,0,nullptr,nullptr,&startupInfo,&process)!=FALSE;check(L"nativeEditorProbeLaunched",launched);
         if(launched){
             double until=now()+8;HWND target{};while(now()<until&&!target){messages();target=FindWindowW(L"FlowGPTInsertionProbe",nullptr);Sleep(30);}check(L"nativeEditorProbeWindow",target!=nullptr);
-            if(target){HWND field=GetDlgItem(target,42);SetForegroundWindow(target);Sleep(250);messages();Insertion insertion;bool captured=insertion.capture();check(L"nativeFocusedFieldCaptured",captured);
+            if(target){HWND field=GetDlgItem(target,42);SetForegroundWindow(target);Sleep(250);messages();
+                Insertion nullPatterns([](IUIAutomationElement*,PATTERNID,REFIID,void** result){*result=nullptr;return S_OK;});check(L"successfulNullPatternsSafelyRefused",!nullPatterns.capture());
+                Insertion insertion;bool captured=insertion.capture();check(L"nativeFocusedFieldCaptured",captured);
                 std::wstring speech=L"हिन्दी English मराठी 🎤\nC++ keyword";bool pasted=captured&&insertion.paste(target,speech);check(L"nativePasteEventsDelivered",pasted);Sleep(750);messages();wchar_t text[512]{};SendMessageW(field,WM_GETTEXT,512,reinterpret_cast<LPARAM>(text));check(L"nativeMixedScriptPasteExact",std::wstring(text)==speech);insertion.restore(target);
                 UINT custom=RegisterClipboardFormatW(L"FlowGPT disposable fixture format");check(L"clipboardFixturePrepared",putFixtureClipboard(target,L"Original clipboard",custom));ClipboardLease lease;
                 check(L"clipboardTranscriptPublished",lease.write(target,speech)&&fixtureClipboard(target)==speech);lease.restore(target);

@@ -44,7 +44,7 @@ inline void atomicWrite(const std::filesystem::path& p, const std::wstring& valu
     CloseHandle(f);
     if(!good || !MoveFileExW(temporary.c_str(),p.c_str(),MOVEFILE_REPLACE_EXISTING|MOVEFILE_WRITE_THROUGH)) { DeleteFileW(temporary.c_str()); throw std::runtime_error("History could not be saved"); }
 }
-struct Entry { std::wstring id, date, text; };
+struct Entry { std::wstring id, date, text,raw; };
 class Store {
     std::filesystem::path root_;
 public:
@@ -59,14 +59,14 @@ public:
         if(json.GetNamedNumber(L"version")!=1) throw std::runtime_error("Unsupported history version");
         auto a = json.GetNamedArray(L"entries");
         if(a.Size()>100) throw std::runtime_error("Invalid history size");
-        for(auto v:a) { auto o=v.GetObject(); auto text=std::wstring(o.GetNamedString(L"text")); if(!validText(text)) throw std::runtime_error("Invalid history entry"); entries.push_back({std::wstring(o.GetNamedString(L"id")),std::wstring(o.GetNamedString(L"date")),text}); }
+        for(auto v:a) { auto o=v.GetObject(); auto text=std::wstring(o.GetNamedString(L"text")); if(!validText(text)) throw std::runtime_error("Invalid history entry");auto raw=std::wstring(o.GetNamedString(L"raw",text));if(!validText(raw))throw std::runtime_error("Invalid original entry");entries.push_back({std::wstring(o.GetNamedString(L"id")),std::wstring(o.GetNamedString(L"date")),text,raw}); }
     }
     void persist(const std::vector<Entry>& values) {
         Json o; o.Insert(L"version",JValue::CreateNumberValue(1)); winrt::Windows::Data::Json::JsonArray a;
-        for(const auto& e:values) { Json v; v.Insert(L"id",JValue::CreateStringValue(e.id)); v.Insert(L"date",JValue::CreateStringValue(e.date)); v.Insert(L"text",JValue::CreateStringValue(e.text)); a.Append(v); }
+        for(const auto& e:values) { Json v; v.Insert(L"id",JValue::CreateStringValue(e.id)); v.Insert(L"date",JValue::CreateStringValue(e.date)); v.Insert(L"text",JValue::CreateStringValue(e.text));v.Insert(L"raw",JValue::CreateStringValue(e.raw.empty()?e.text:e.raw)); a.Append(v); }
         o.Insert(L"entries",a); atomicWrite(root_/L"history.json",std::wstring(o.Stringify())); entries=values;
     }
-    void save(const std::wstring& text) { if(!validText(text)) throw std::runtime_error("Empty or oversized transcript"); auto copy=entries; copy.insert(copy.begin(),{guid(),utc(),text}); if(copy.size()>100) copy.resize(100); persist(copy); }
+    void save(const std::wstring& text,const std::wstring& raw=L"") { if(!validText(text)||(!raw.empty()&&!validText(raw))) throw std::runtime_error("Empty or oversized transcript"); auto copy=entries; copy.insert(copy.begin(),{guid(),utc(),text,raw.empty()?text:raw}); if(copy.size()>100) copy.resize(100); persist(copy); }
     void erase(const std::wstring& id) { auto copy=entries; copy.erase(std::remove_if(copy.begin(),copy.end(),[&](auto& e){return e.id==id;}),copy.end()); persist(copy); }
     void setting(const std::wstring& key, const winrt::Windows::Data::Json::IJsonValue& value) { auto copy=Json::Parse(settings.Stringify()); copy.Insert(key,value); atomicWrite(root_/L"settings.json",std::wstring(copy.Stringify())); settings=copy; }
 };
@@ -125,91 +125,10 @@ public:
     }
     void stop() { audio.freeze(); SetEvent(stop_); if(thread_.joinable()) thread_.join(); running_=false; }
 };
-class ClipboardLease {
-    struct Format { UINT id; std::vector<unsigned char> data; };
-    std::vector<Format> saved_;
-    DWORD owned_=0;
-    std::wstring published_;
-public:
-    bool write(HWND owner,const std::wstring& text) {
-        if(!OpenClipboard(owner)) return false;
-        struct Close { bool active=true;void finish(){if(active){CloseClipboard();active=false;}}~Close(){finish();} } close;
-        for(UINT id=EnumClipboardFormats(0);id;id=EnumClipboardFormats(id)) {
-            HANDLE handle=GetClipboardData(id); size_t n=GlobalSize(handle);
-            // Do not destroy unsupported GDI/delayed formats to perform a paste.
-            if(!handle || !n || n>32*1024*1024) return false;
-            const auto* bytes=static_cast<unsigned char*>(GlobalLock(handle)); if(!bytes) return false;
-            saved_.push_back({id,std::vector<unsigned char>(bytes,bytes+n)}); GlobalUnlock(handle);
-        }
-        HGLOBAL memory=GlobalAlloc(GMEM_MOVEABLE,(text.size()+1)*sizeof(wchar_t)); if(!memory) return false;
-        auto p=GlobalLock(memory); if(!p){GlobalFree(memory);return false;} memcpy(p,text.c_str(),(text.size()+1)*sizeof(wchar_t)); GlobalUnlock(memory);
-        if(!EmptyClipboard() || !SetClipboardData(CF_UNICODETEXT,memory)){GlobalFree(memory); restoreContents();return false;}
-        published_=text;
-        // Closing publication can render Windows' synthesized text formats and
-        // advance the sequence. Observe the completed publication, not the lock.
-        close.finish();owned_=GetClipboardSequenceNumber();return true;
-    }
-    void restoreContents() {
-        EmptyClipboard();
-        for(auto& f:saved_) { HGLOBAL memory=GlobalAlloc(GMEM_MOVEABLE,f.data.size()); if(!memory)continue; void* p=GlobalLock(memory); if(!p){GlobalFree(memory);continue;} memcpy(p,f.data.data(),f.data.size()); GlobalUnlock(memory); if(!SetClipboardData(f.id,memory))GlobalFree(memory); }
-    }
-    void restore(HWND owner) { if(!owned_ || !mayRestore(owned_,GetClipboardSequenceNumber())) return; if(!OpenClipboard(owner))return;
-        HANDLE h=GetClipboardData(CF_UNICODETEXT);const auto* p=static_cast<const wchar_t*>(GlobalLock(h));bool stillPublished=GetClipboardOwner()==owner&&p&&published_==p;if(p)GlobalUnlock(h);
-        if(stillPublished&&mayRestore(owned_,GetClipboardSequenceNumber()))restoreContents();CloseClipboard();owned_=0;
-    }
-};
-class Insertion {
-    ComPtr<IUIAutomation> automation_;
-    HWND window_{};
-    DWORD pid_{};
-    std::vector<int> id_;
-    std::unique_ptr<ClipboardLease> lease_;
-    bool sent_=false;
-    static std::vector<int> runtimeId(IUIAutomationElement* element) {
-        SAFEARRAY* array{}; if(FAILED(element->GetRuntimeId(&array))||!array)return{};
-        LONG lower{},upper{}; SafeArrayGetLBound(array,1,&lower); SafeArrayGetUBound(array,1,&upper); std::vector<int> values;
-        for(LONG i=lower;i<=upper;++i){int value{};SafeArrayGetElement(array,&i,&value);values.push_back(value);}SafeArrayDestroy(array);return values;
-    }
-    static bool editable(IUIAutomationElement* e) {
-        ComPtr<IUIAutomationValuePattern> value;
-        if(SUCCEEDED(e->GetCurrentPatternAs(UIA_ValuePatternId,IID_PPV_ARGS(&value)))) { BOOL readonly=TRUE; return SUCCEEDED(value->get_CurrentIsReadOnly(&readonly))&&!readonly; }
-        CONTROLTYPEID type{};e->get_CurrentControlType(&type);
-        ComPtr<IUIAutomationTextPattern> text;
-        return (type==UIA_EditControlTypeId||type==UIA_DocumentControlTypeId)&&SUCCEEDED(e->GetCurrentPatternAs(UIA_TextPatternId,IID_PPV_ARGS(&text)));
-    }
-public:
-    Insertion(){CoCreateInstance(CLSID_CUIAutomation,nullptr,CLSCTX_INPROC_SERVER,IID_PPV_ARGS(&automation_));ComPtr<IUIAutomation2> timed;if(automation_&&SUCCEEDED(automation_.As(&timed))){timed->put_ConnectionTimeout(1000);timed->put_TransactionTimeout(1000);}}
-    bool capture() {
-        sent_=false; id_.clear(); window_=GetForegroundWindow(); GetWindowThreadProcessId(window_,&pid_);
-        if(pid_==GetCurrentProcessId()||!automation_)return false;
-        ComPtr<IUIAutomationElement> element; if(FAILED(automation_->GetFocusedElement(&element)))return false;
-        BOOL password{}; if(FAILED(element->get_CurrentIsPassword(&password))||password)return false;
-        if(!editable(element.Get()))return false;
-        id_=runtimeId(element.Get()); return !id_.empty();
-    }
-    bool valid() {
-        if(!automation_||GetForegroundWindow()!=window_)return false;
-        ComPtr<IUIAutomationElement> element;if(FAILED(automation_->GetFocusedElement(&element)))return false;
-        BOOL password{},enabled{};if(FAILED(element->get_CurrentIsPassword(&password))||FAILED(element->get_CurrentIsEnabled(&enabled)))return false;
-        if(password||!enabled||!editable(element.Get()))return false;
-        ComPtr<IUIAutomationValuePattern> value; if(SUCCEEDED(element->GetCurrentPatternAs(UIA_ValuePatternId,IID_PPV_ARGS(&value)))){BOOL readonly{};if(SUCCEEDED(value->get_CurrentIsReadOnly(&readonly))&&readonly)return false;}
-        return sameTarget(reinterpret_cast<uintptr_t>(window_),reinterpret_cast<uintptr_t>(GetForegroundWindow()),id_,runtimeId(element.Get()));
-    }
-    bool paste(HWND owner,const std::wstring& text) {
-        if(sent_||!valid()||!validText(text))return false;
-        lease_=std::make_unique<ClipboardLease>();if(!lease_->write(owner,text)){lease_.reset();return false;}
-        if(!valid()){lease_->restore(owner);lease_.reset();return false;}
-        // Wait until the global shortcut modifiers have been released before paste.
-        INPUT events[4]{};
-        for(auto& e:events)e.type=INPUT_KEYBOARD;
-        events[0].ki.wVk=VK_CONTROL;events[1].ki.wVk='V';events[2].ki.wVk='V';events[2].ki.dwFlags=KEYEVENTF_KEYUP;events[3].ki.wVk=VK_CONTROL;events[3].ki.dwFlags=KEYEVENTF_KEYUP;
-        sent_=true;return SendInput(4,events,sizeof(INPUT))==4;
-    }
-    void restore(HWND owner){if(lease_)lease_->restore(owner);lease_.reset();}
-};
 inline bool startupEnabled() { HKEY key{}; if(RegOpenKeyExW(HKEY_CURRENT_USER,L"Software\\Microsoft\\Windows\\CurrentVersion\\Run",0,KEY_READ,&key)!=ERROR_SUCCESS)return false; LONG result=RegQueryValueExW(key,L"FlowGPT",nullptr,nullptr,nullptr,nullptr);RegCloseKey(key);return result==ERROR_SUCCESS; }
 inline void startup(bool enable) { HKEY key{};winrt::check_win32(RegCreateKeyExW(HKEY_CURRENT_USER,L"Software\\Microsoft\\Windows\\CurrentVersion\\Run",0,nullptr,0,KEY_WRITE,nullptr,&key,nullptr)); LONG hr;
     if(enable){auto command=L"\""+exePath()+L"\" --background";hr=RegSetValueExW(key,L"FlowGPT",0,REG_SZ,reinterpret_cast<const BYTE*>(command.c_str()),DWORD((command.size()+1)*2));}
     else{hr=RegDeleteValueW(key,L"FlowGPT");if(hr==ERROR_FILE_NOT_FOUND)hr=ERROR_SUCCESS;}RegCloseKey(key);winrt::check_win32(hr);
 }
 }
+#include "Insertion.h"

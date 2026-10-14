@@ -32,6 +32,10 @@ public:
     std::wstring status=L"Connecting to ChatGPT…";
     double loadedAt=now();
     std::function<void()> interrupted;
+    std::function<void(long)> failed;
+    void invoke(std::function<void(Json)> fn,Json value)noexcept{
+        try{fn(value);}catch(const winrt::hresult_error& e){try{if(failed)failed(e.code().value);}catch(...){}}catch(...){try{if(failed)failed(E_FAIL);}catch(...){}}
+    }
     static Json error(const std::wstring& message){Json v;v.Insert(L"error",JValue::CreateStringValue(message));return v;}
     explicit Browser(std::filesystem::path profile = dataPath()/L"WebView2", bool fixture=false): profile_(std::move(profile)),fixture_(fixture){}
     ~Browser(){lifetime_->alive=false;close();if(window_)DestroyWindow(window_);}
@@ -39,7 +43,7 @@ public:
     bool ready() const{return initialized_ && web_;}
     void show(){shown_=true;SetLayeredWindowAttributes(window_,0,255,LWA_ALPHA);ShowWindow(window_,SW_SHOW);SetForegroundWindow(window_);}
     void hide(){shown_=false;SetLayeredWindowAttributes(window_,0,1,LWA_ALPHA);ShowWindow(window_,SW_SHOWNOACTIVATE);SetWindowPos(window_,HWND_BOTTOM,0,0,0,0,SWP_NOMOVE|SWP_NOSIZE|SWP_NOACTIVATE);}
-    void failPending(const std::wstring& message){auto pending=std::move(pending_);pending_.clear();for(auto& p:pending)p.second.callback(error(message));}
+    void failPending(const std::wstring& message){auto pending=std::move(pending_);pending_.clear();if(lifetime_->alive)for(auto& p:pending)invoke(std::move(p.second.callback),error(message));}
     void close(){++lifetime_->generation;initialized_=false;connected=false;failPending(L"Browser connection closed");if(controller_)controller_->Close();web_.Reset();controller_.Reset();environment_.Reset();}
     void reload(){if(active||hasDraft||needsLogin)return;close();init();}
     void init(){
@@ -54,16 +58,16 @@ public:
         options->put_AdditionalBrowserArguments(L"--autoplay-policy=no-user-gesture-required");
         HRESULT hr=CreateCoreWebView2EnvironmentWithOptions(nullptr,profile_.c_str(),options.Get(),Microsoft::WRL::Callback<ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler>([this,guard,generation](HRESULT result,ICoreWebView2Environment* env)->HRESULT{
             if(!guard->alive||generation!=guard->generation)return S_OK;
-            if(FAILED(result)){status=L"WebView2 runtime unavailable. Install Microsoft Edge WebView2 Runtime.";return S_OK;}environment_=env;
+            if(FAILED(result)||!env){status=L"WebView2 runtime unavailable. Install Microsoft Edge WebView2 Runtime.";return S_OK;}environment_=env;
             env->CreateCoreWebView2Controller(window_,Microsoft::WRL::Callback<ICoreWebView2CreateCoreWebView2ControllerCompletedHandler>([this,guard,generation](HRESULT created,ICoreWebView2Controller* controller)->HRESULT{
                 if(!guard->alive||generation!=guard->generation){if(controller)controller->Close();return S_OK;}
-                if(FAILED(created)){status=L"ChatGPT browser could not initialize";return S_OK;}controller_=controller;controller_->get_CoreWebView2(&web_);resize();
+                if(FAILED(created)||!controller){status=L"ChatGPT browser could not initialize";return S_OK;}controller_=controller;if(FAILED(controller_->get_CoreWebView2(&web_))||!web_){status=L"ChatGPT browser unavailable";return S_OK;}resize();
                 EventRegistrationToken token{};
                 web_->add_WebMessageReceived(Microsoft::WRL::Callback<ICoreWebView2WebMessageReceivedEventHandler>([this,guard,generation](ICoreWebView2*,ICoreWebView2WebMessageReceivedEventArgs* args)->HRESULT{
                     if(!guard->alive||generation!=guard->generation)return S_OK;
                     LPWSTR source{},raw{};args->get_Source(&source);args->get_WebMessageAsJson(&raw);
                     bool valid=source&&trusted(source);std::wstring payload=raw?raw:L"";CoTaskMemFree(source);CoTaskMemFree(raw);if(!valid)return S_OK;
-                    try{auto j=Json::Parse(payload);if(j.GetNamedString(L"type",L"")!=L"flow-response")return S_OK;int id=int(j.GetNamedNumber(L"id",0));auto it=pending_.find(id);if(it!=pending_.end()){auto fn=std::move(it->second.callback);pending_.erase(it);fn(j.GetNamedObject(L"result"));}}catch(...){/* Untrusted or malformed messages never cause insertion. */}return S_OK;
+                    try{auto j=Json::Parse(payload);if(j.GetNamedString(L"type",L"")!=L"flow-response")return S_OK;int id=int(j.GetNamedNumber(L"id",0));auto it=pending_.find(id);if(it!=pending_.end()){auto value=j.GetNamedObject(L"result");auto fn=std::move(it->second.callback);pending_.erase(it);invoke(std::move(fn),value);}}catch(...){/* Malformed messages never cause insertion. */}return S_OK;
                 }).Get(),&token);
                 web_->add_NavigationStarting(Microsoft::WRL::Callback<ICoreWebView2NavigationStartingEventHandler>([this,guard,generation](ICoreWebView2*,ICoreWebView2NavigationStartingEventArgs* args)->HRESULT{if(!guard->alive||generation!=guard->generation)return S_OK;LPWSTR uri{};args->get_Uri(&uri);needsLogin=uri&&!trusted(uri);CoTaskMemFree(uri);initialized_=false;connected=false;loadedAt=now();failPending(L"Browser navigated");return S_OK;}).Get(),&token);
                 web_->add_NavigationCompleted(Microsoft::WRL::Callback<ICoreWebView2NavigationCompletedEventHandler>([this,guard,generation](ICoreWebView2*,ICoreWebView2NavigationCompletedEventArgs* args)->HRESULT{if(!guard->alive||generation!=guard->generation)return S_OK;BOOL success{};args->get_IsSuccess(&success);initialized_=success;status=success?L"Checking ChatGPT connection…":L"Connection failed; retrying when idle";return S_OK;}).Get(),&token);
@@ -83,11 +87,11 @@ public:
         if(FAILED(hr))status=L"WebView2 could not start. Check the installed runtime.";
     }
     void call(const std::wstring& action,std::function<void(Json)> fn,const std::wstring& expected=L"") {
-        if(!ready()){fn(error(L"Waiting for the browser"));return;}
-        LPWSTR source{};web_->get_Source(&source);bool origin=source&&trusted(source);CoTaskMemFree(source);if(!origin){fn(error(L"Finish signing in to ChatGPT"));return;}
+        if(!ready()){invoke(std::move(fn),error(L"Waiting for the browser"));return;}
+        LPWSTR source{};web_->get_Source(&source);bool origin=source&&trusted(source);CoTaskMemFree(source);if(!origin){invoke(std::move(fn),error(L"Finish signing in to ChatGPT"));return;}
         int id=next_++;Json request;request.Insert(L"type",JValue::CreateStringValue(L"flow-request"));request.Insert(L"id",JValue::CreateNumberValue(id));request.Insert(L"action",JValue::CreateStringValue(action));request.Insert(L"expected",JValue::CreateStringValue(expected));
-        pending_.emplace(id,Pending{now()+8,std::move(fn)});HRESULT hr=web_->PostWebMessageAsJson(request.Stringify().c_str());if(FAILED(hr)){auto cb=std::move(pending_[id].callback);pending_.erase(id);cb(error(L"Browser message could not be delivered"));}
+        pending_.emplace(id,Pending{now()+8,std::move(fn)});HRESULT hr=web_->PostWebMessageAsJson(request.Stringify().c_str());if(FAILED(hr)){auto it=pending_.find(id);if(it!=pending_.end()){auto cb=std::move(it->second.callback);pending_.erase(it);invoke(std::move(cb),error(L"Browser message could not be delivered"));}}
     }
-    void tick(){std::vector<int> expired;for(auto& p:pending_)if(now()>p.second.deadline)expired.push_back(p.first);for(int id:expired){auto it=pending_.find(id);if(it==pending_.end())continue;auto fn=std::move(it->second.callback);pending_.erase(it);fn(error(L"Browser response timed out"));}}
+    void tick(){std::vector<int> expired;for(auto& p:pending_)if(now()>p.second.deadline)expired.push_back(p.first);for(int id:expired){auto it=pending_.find(id);if(it==pending_.end())continue;auto fn=std::move(it->second.callback);pending_.erase(it);invoke(std::move(fn),error(L"Browser response timed out"));}}
 };
 }
