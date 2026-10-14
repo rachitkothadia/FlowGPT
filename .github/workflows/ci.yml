@@ -23,6 +23,7 @@ jobs:
         run: swift --version
       - name: Test native policies
         run: |
+          python3 Scripts/currency-data.py
           ruby Scripts/formatting-fixtures.rb
           Scripts/test.sh
       - name: Build release with warnings as errors

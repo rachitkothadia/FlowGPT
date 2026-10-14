@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.0
+
+- Detect coordinated item phrases and parallel actions without mandatory list-introduction words; keep full conversational clauses separate.
+- Use circle bullets (•), remove separator commas between items, preserve interruptions in spoken order, and number procedural actions.
+- Normalize identifiable currency expressions using bundled Unicode CLDR data covering 307 currency identifiers and 23 locales; preserve ambiguous names, literal quotations and code.
+- Preserve original transcripts in History, with no extra network request or predictive rewriting.
+
+
 ## 1.2.0
 
 - Shared native Mac/Windows formatting for introduced bullet lists, spoken numbered steps and explicit task checkboxes, with original transcripts retained.

@@ -31,7 +31,8 @@ inline std::vector<bool> protectedBytes(const std::string& s) {
     for(size_t i=0;i<s.size();) {
         if(space(s[i])){++i;continue;}size_t end=i;while(end<s.size()&&!space(s[end]))++end;
         auto token=s.substr(i,end-i);
-        bool literal=token.find('/')!=std::string::npos||token.find('\\')!=std::string::npos||token.find('@')!=std::string::npos||token.find('_')!=std::string::npos;
+        bool grouped=false;for(size_t j=1;j+1<token.size();++j)if(token[j]==','&&std::isdigit(static_cast<unsigned char>(token[j-1]))&&std::isdigit(static_cast<unsigned char>(token[j+1])))grouped=true;
+        bool literal=grouped||token.find('/')!=std::string::npos||token.find('\\')!=std::string::npos||token.find('@')!=std::string::npos||token.find('_')!=std::string::npos;
         // Filenames, domains, dotted identifiers and decimal numbers.
         for(size_t p=1;p+1<token.size();++p)if(token[p]=='.'&&asciiWord(token[p-1])&&asciiWord(token[p+1]))literal=true;
         if(literal){size_t last=end;while(last>i&&(s[last-1]==','||s[last-1]=='.'||s[last-1]==';'||s[last-1]=='!'||s[last-1]=='?'))--last;for(size_t p=i;p<last;++p)mask[p]=true;}i=end;
@@ -65,6 +66,9 @@ inline std::string capitalize(std::string s) {
     }
     return s;
 }
+}
+#include "CurrencyFormatting.h"
+namespace flow_format {
 inline bool cue(const std::string& s) {
     auto t=lower(s);
     for(const auto* p:{"list","lists","steps","tasks","items","things","required","requirements","ingredients","following","kaam","काम","चीज","सूची","यादी","કામ","યાદી"}){
@@ -114,58 +118,124 @@ inline size_t sentenceEnd(const std::string& s,const std::vector<bool>& mask,siz
 inline bool listItem(const std::string& text) {
     auto t=lower(trim(text));size_t count=1;for(char c:t)if(space(c))++count;
     if(t.empty()||count>16)return false;
-    for(const auto* p:{"when ","if ","no ","actually ","wait ","instead ","नहीं ","नाही ","i ","and i ","but ","because ","he ","she "})if(begins(t,p))return false;
+    for(const auto* p:{"when ","if ","no ","not ","actually ","wait ","instead ","नहीं ","नाही ","i ","and i ","but ","because ","he ","she "})if(begins(t,p))return false;
     return true;
 }
-inline std::string enumerations(const std::string& s) {
-    if(s.find("\n- ")!=std::string::npos||s.find("\n1. ")!=std::string::npos)return s;
-    auto mask=protectedBytes(s);auto t=lower(s);
-    for(size_t p=0;p<s.size();++p) {
-        if(mask[p])continue;size_t from=std::string::npos;
-        if(s[p]==':')from=p+1;
-        // Introduced noun enumerations need no spoken "colon" command.
-        for(const auto* marker:{"it would be ","things like ","items are ","we need ","i need ","i require ","includes ","include ","these are ","ये हैं ","हे आहेत "}) {
-            size_t n=std::char_traits<char>::length(marker);
-            if(t.compare(p,n,marker)==0&&boundary(s,p)&&cue(s.substr(0,p+n)))from=p+n;
-        }
-        if(from==std::string::npos||s.substr(0,from).find('=')!=std::string::npos)continue;
-        while(from<s.size()&&space(s[from]))++from;
-        size_t end=sentenceEnd(s,mask,from);std::vector<std::string> items;size_t start=from;
-        for(size_t j=from;j<end;++j)if(s[j]==','&&!mask[j]){items.push_back(trim(s.substr(start,j-start+1)));start=j+1;}
-        items.push_back(trim(s.substr(start,end-start)));
-        if(items.size()==1&&cue(s.substr(0,from))) {
-            // Conjunction-only enumerations require an explicit list introduction.
-            std::vector<size_t> separators;
-            for(size_t j=from;j<end;++j){if(mask[j])continue;
-                for(const auto* join:{" and then "," and "," और "," आणि "," અને "}) {
-                    size_t n=std::char_traits<char>::length(join);
-                    if(t.compare(j,n,join)==0){separators.push_back(j);j+=n-1;break;}
-                }
-            }
-            if(separators.size()>=2){items.clear();start=from;
-                for(auto j:separators){items.push_back(trim(s.substr(start,j-start)));start=j+1;}
-                items.push_back(trim(s.substr(start,end-start)));
-            }
-        }
-        // A trailing personal sentence after the enumeration stays prose.
-        if(items.size()>=3&&(begins(lower(items.back()),"and i ")||begins(lower(items.back()),"and we "))) {
-            end=start;items.pop_back();
-        }
-        if(items.size()<2||!std::all_of(items.begin(),items.end(),listItem))continue;
-        // At least two separators unless explicit colon or a clear list introduction.
-        if(items.size()<3&&s[p]!=':')continue;
-        auto prefix=trim(s.substr(0,from));if(!prefix.empty()&&prefix.back()!=':')prefix+=':';
-        bool todo=t.substr(0,from).find("to-do list")!=std::string::npos||t.substr(0,from).find("todo list")!=std::string::npos;
-        auto out=prefix;for(const auto& item:items)out+=todo?"\n- [ ] "+item:"\n- "+item;
-        auto rest=trim(s.substr(end));if(!rest.empty())out+="\n\n"+enumerations(rest);
-        return out;
+struct ListPiece { size_t begin,end,item;int kind=0; };
+inline std::string unjoin(std::string text){
+    text=lower(trim(text));
+    for(const auto* prefix:{"and then ","then ","and ","और ","आणि ","અને "})if(begins(text,prefix)){text=text.substr(std::char_traits<char>::length(prefix));break;}
+    return text;
+}
+inline bool proceduralItem(const std::string& text){
+    auto t=unjoin(text);
+    for(const auto* p:{"open ","click ","press ","select ","edit ","save ","close ","type ","enter ","tap ","खोलो ","दबाओ ","निवडा "})if(begins(t,p))return true;
+    return false;
+}
+inline bool monetaryItem(const std::string& text){
+    for(const auto* symbol:{"₹","$","€","£","¥","₩","₽","₺","฿","₴","₱","₪","₫"})if(text.find(symbol)!=std::string::npos)return true;
+    static const std::regex iso("(^| )([A-Z]{3}) [0-9]");return std::regex_search(text,iso);
+}
+inline int itemKind(const std::string& source){
+    auto t=unjoin(source);while(!t.empty()&&(t.back()=='.'||t.back()==','))t.pop_back();
+    if(t.empty()||t.find('?')!=std::string::npos)return 0;
+    for(const auto* term:{"okay","ok","well","so","yeah","and yeah","हाँ","हां","ओके","अच्छा"})if(t==term)return 0;
+    size_t count=1;for(char c:t)if(space(c))++count;if(count>22)return 0;
+    for(const auto* p:{"when ","if ","no ","not ","actually ","wait ","instead ","नहीं ","नाही ","but ","because ","what ","how ","why "})if(begins(t,p))return 0;
+    if(proceduralItem(t))return 3;
+    // Parallel future-action phrases are items even when the language is mixed.
+    bool action=false;
+    if(t.find("would go for ")!=std::string::npos||t.find("will buy ")!=std::string::npos)action=true;
+    auto words=moneyTokens(t);
+    if(words.size()>=2){auto last=words.back().word;auto previous=words[words.size()-2].word;
+        if((last=="है"||last=="हैं"||last=="है।")&&(previous.size()>=6&&(previous.compare(previous.size()-6,6,"ना")==0||previous.compare(previous.size()-6,6,"नी")==0)))action=true;
     }
-    return s;
+    if(words.size()>=2&&(words.back().word=="आहे"||words.back().word=="आहे।")){
+        auto prev=words[words.size()-2].word;
+        if(prev.size()>=12&&(prev.compare(prev.size()-12,12,"ायचे")==0||prev.compare(prev.size()-12,12,"ायची")==0))action=true;
+        if(!action)return 0;
+    }
+    if(action)return 2;
+    for(const auto* p:{"अरे ","तू ","तुम ","तुम्ही ","मला ","मी ","मैं ","मुझे "})if(begins(t,p))return 0;
+    if(t=="multiple things"||t=="several things"||t=="many things")return 0;
+    for(const auto* p:{"i ","i'm ","i’ve ","we ","you ","he ","she ","it ","it's ","they "})if(begins(t,p))return 0;
+    for(const auto* p:{" is "," was "," were "," am "," are "," went "," said "," felt "," happened "," because "," when "," while "," i "," i'm "," we "})if(t.find(p)!=std::string::npos&&!monetaryItem(t))return 0;
+    return count<=10?1:0;
+}
+inline size_t itemStart(const std::string& s,size_t a,size_t b){
+    auto t=lower(s.substr(a,b-a));size_t offset=0;
+    for(const auto* p:{"like ","such as ","जैसे ","म्हणजे "})if(begins(t,p))return a+std::char_traits<char>::length(p);
+    // A grammatical introduction may precede the first object; it is not required.
+    for(const auto* p:{"things like ","items are ","it would be ","i want to ","we need ","i need ","i require ","buy ","bring ","pack ","collect ","order ","ये हैं ","हे आहेत "}){
+        auto pos=t.find(p);if(pos!=std::string::npos&&boundary(t,pos))offset=std::max(offset,pos+std::char_traits<char>::length(p));
+    }
+    auto colon=t.find(':');if(colon!=std::string::npos)offset=std::max(offset,colon+1);
+    while(a+offset<b&&space(s[a+offset]))++offset;return a+offset;
+}
+struct ListedSentence { std::string text;bool listed=false; };
+inline ListedSentence listSentence(const std::string& s,bool continuation){
+    auto t=lower(trim(s));
+    for(const auto* p:{"i am ","i'm ","it is ","it's ","i was ","it was "})if(begins(t,p)&&t.find("buy ")==std::string::npos)return {s,false};
+    for(const auto* correction:{" no ","no actually ","not ","अरे नहीं","नहीं ","nahi "," wait i mean "})if(t.find(correction)!=std::string::npos)return {s,false};
+    auto mask=protectedBytes(s);std::vector<ListPiece> pieces;size_t start=0;
+    auto append=[&](size_t end){size_t a=start;while(a<end&&space(s[a]))++a;while(end>a&&space(s[end-1]))--end;if(a<end)pieces.push_back({a,end,itemStart(s,a,end),0});};
+    for(size_t p=0;p<s.size();++p){if(mask[p])continue;
+        if(s[p]==','){append(p);start=p+1;continue;}
+        for(const auto* join:{" and then "," and "," then "," और "," आणि "," અને "," ਅਤੇ "," اور "," এবং "," আৰু "," ଏବଂ "," மற்றும் "," మరియు "," ಮತ್ತು "," ഒപ്പം "," र "," et "," und "," y "," e "," и "," と "," 和 "," 및 "}){
+            size_t n=std::char_traits<char>::length(join);if(s.compare(p,n,join)==0){append(p);start=p+1;p+=n-1;break;}
+        }
+    }append(s.size());
+    for(auto& part:pieces){
+        auto original=lower(s.substr(part.begin,part.end-part.begin));
+        bool conversational=original.find("i'm ")!=std::string::npos&&original.find("go for ")==std::string::npos;
+        part.kind=itemKind(s.substr(part.item,part.end-part.item));
+        if(conversational)part.kind=0;
+        if(part.item==part.begin&&cue(s.substr(part.begin,part.end-part.begin))&&part.kind==2)part.kind=0;
+    }
+    // A short addressee before a question belongs to the question, not the shopping list.
+    if(pieces.size()>=2&&s.find('?')!=std::string::npos){auto& before=pieces[pieces.size()-2];auto candidate=lower(trim(s.substr(before.begin,before.end-before.begin)));
+        if(begins(candidate,"and ")&&std::count(candidate.begin(),candidate.end(),' ')<=1)before.kind=0;
+    }
+    size_t a=0,b=0;bool found=false;
+    for(size_t i=0;i<pieces.size();){if(!pieces[i].kind){++i;continue;}size_t end=i;while(end<pieces.size()&&pieces[end].kind)++end;
+        bool distinct=true;
+        for(size_t k=i;k+1<end;++k)if(unjoin(s.substr(pieces[k].item,pieces[k].end-pieces[k].item))==unjoin(s.substr(pieces[k+1].item,pieces[k+1].end-pieces[k+1].item)))distinct=false;
+        bool single=continuation&&end==i+1&&monetaryItem(s.substr(pieces[i].item,pieces[i].end-pieces[i].item));
+        bool concise=true,actions=true;
+        for(size_t k=i;k<end;++k){auto phrase=unjoin(s.substr(pieces[k].item,pieces[k].end-pieces[k].item));concise=concise&&std::count(phrase.begin(),phrase.end(),' ')<=1;actions=actions&&pieces[k].kind>=2;}
+        bool explicitDelimiter=s.find(',')!=std::string::npos||s.find(':')!=std::string::npos;
+        if((end-i>=2&&distinct&&(end-i>=3||explicitDelimiter||concise||actions))||single){a=i;b=end;found=true;break;}i=end;
+    }
+    if(!found)return {s,false};
+    bool ordered=b-a>=2;for(size_t i=a;i<b;++i)ordered=ordered&&pieces[i].kind==3;
+    auto prefix=trim(s.substr(0,pieces[a].item));while(!prefix.empty()&&prefix.back()==',')prefix.pop_back();prefix=trim(prefix);
+    bool resumed=continuation&&b==a+1;
+    if(!prefix.empty()&&!resumed&&prefix.back()!=':')prefix+=':';
+    if(resumed&&!prefix.empty()&&prefix.back()!=',')prefix+=',';
+    std::string out=prefix;
+    for(size_t i=a;i<b;++i){auto begin=i==a?pieces[i].item:pieces[i].begin;auto item=trim(s.substr(begin,pieces[i].end-begin));
+        if(!out.empty())out+='\n';out+=ordered?std::to_string(i-a+1)+". ":"• ";out+=item;
+    }
+    auto suffix=trim(s.substr(pieces[b-1].end));if(!suffix.empty()&&suffix.front()==',')suffix=trim(suffix.substr(1));
+    if(!suffix.empty())out+="\n\n"+suffix;
+    return {out,true};
+}
+inline std::string enumerations(const std::string& s){
+    if(s.find("\n• ")!=std::string::npos||s.find("\n1. ")!=std::string::npos)return s;
+    auto mask=protectedBytes(s);std::string out;bool continuation=false;size_t from=0;
+    while(from<s.size()){
+        size_t end=sentenceEnd(s,mask,from);auto processed=listSentence(s.substr(from,end-from),continuation);
+        if(!out.empty()&&begins(processed.text,"• ")){while(!out.empty()&&space(out.back()))out.pop_back();out+="\n\n";}
+        out+=processed.text;continuation=processed.listed;
+        size_t next=end;while(next<s.size()&&space(s[next]))++next;
+        if(next<s.size())out+=continuation?"\n\n":s.substr(end,next-end);
+        from=next;
+    }return out;
 }
 inline std::string format(const std::string& source) {
     if(source.size()>100000)return source;
-    auto text=capitalize(fillers(source));
-    if(text.find("\n- ")!=std::string::npos||text.find("\n1. ")!=std::string::npos)return text;
+    auto text=normalizeMoney(capitalize(fillers(source)));
+    if(text.find("\n• ")!=std::string::npos||text.find("\n1. ")!=std::string::npos)return text;
     auto numeric=separateNumeric(text);if(numeric!=text)return numeric;
     auto ordered=spokenSequence(text);if(ordered!=text)return ordered;
     return enumerations(text);

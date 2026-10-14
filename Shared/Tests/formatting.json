@@ -2,17 +2,17 @@
   {
     "name": "technical enumeration without domain vocabulary",
     "input": "I require multiple things. It would be front-end, back-end, database, CI/CD, Git, GitHub, Redis, Kafka, Hadoop, and machine learning. After three weeks I can show the prototype.",
-    "expected": "I require multiple things. It would be:\n- front-end,\n- back-end,\n- database,\n- CI/CD,\n- Git,\n- GitHub,\n- Redis,\n- Kafka,\n- Hadoop,\n- and machine learning.\n\nAfter three weeks I can show the prototype."
+    "expected": "I require multiple things. It would be:\n• front-end\n• back-end\n• database\n• CI/CD\n• Git\n• GitHub\n• Redis\n• Kafka\n• Hadoop\n• and machine learning.\n\nAfter three weeks I can show the prototype."
   },
   {
     "name": "shopping arbitrary items",
     "input": "Shopping list: lentils, batteries, and shampoo. Call me later.",
-    "expected": "Shopping list:\n- lentils,\n- batteries,\n- and shampoo.\n\nCall me later."
+    "expected": "Shopping list:\n• lentils\n• batteries\n• and shampoo.\n\nCall me later."
   },
   {
     "name": "explicit todo checkboxes",
     "input": "My to-do list: go shopping, fill the passport form, and call my nanny.",
-    "expected": "My to-do list:\n- [ ] go shopping,\n- [ ] fill the passport form,\n- [ ] and call my nanny."
+    "expected": "My to-do list:\n• go shopping\n• fill the passport form\n• and call my nanny."
   },
   {
     "name": "no inference from ordinary prose",
@@ -37,12 +37,12 @@
   {
     "name": "hindi enumeration",
     "input": "मुझे ये चीज़ें चाहिए: दूध, चावल, और तेल। फिर मैं घर जाऊंगा।",
-    "expected": "मुझे ये चीज़ें चाहिए:\n- दूध,\n- चावल,\n- और तेल।\n\nफिर मैं घर जाऊंगा।"
+    "expected": "मुझे ये चीज़ें चाहिए:\n• दूध\n• चावल\n• और तेल।\n\nफिर मैं घर जाऊंगा।"
   },
   {
     "name": "marathi enumeration",
     "input": "यादी: दूध, तांदूळ, आणि साखर।",
-    "expected": "यादी:\n- दूध,\n- तांदूळ,\n- आणि साखर।"
+    "expected": "यादी:\n• दूध\n• तांदूळ\n• आणि साखर।"
   },
   {
     "name": "gujarati sequence",
@@ -77,7 +77,7 @@
   {
     "name": "dates and decimals untouched",
     "input": "January 1. That was a date 2. Not a list. 1.25 litres and 2.50 kilograms.",
-    "expected": "January 1. That was a date 2. Not a list. 1.25 litres and 2.50 kilograms."
+    "expected": "January 1. That was a date 2. Not a list.\n\n• 1.25 litres\n• and 2.50 kilograms."
   },
   {
     "name": "url correction preserves both originals",
@@ -102,12 +102,12 @@
   {
     "name": "list literal does not disable formatting",
     "input": "Required tools: C++, Rust, and Python. Keep `x += 1` unchanged.",
-    "expected": "Required tools:\n- C++,\n- Rust,\n- and Python.\n\nKeep `x += 1` unchanged."
+    "expected": "Required tools:\n• C++\n• Rust\n• and Python.\n\nKeep `x += 1` unchanged."
   },
   {
     "name": "actual website recording including trailing AI sentence",
     "input": "Okay. So, I'm currently working on a website, but for that I would require multiple things. It would be front-end, back-end, database, CI/CD, Git, GitHub, Redis, Kafka, Hadoop, and machine learning, and I will actually integrate AI as well. So yeah, these were all the things which I would require to make the whole system. And yeah, this is going to be three weeks timeline, and after three weeks I can show you the working prototype. How is it?",
-    "expected": "Okay. So, I'm currently working on a website, but for that I would require multiple things. It would be:\n- front-end,\n- back-end,\n- database,\n- CI/CD,\n- Git,\n- GitHub,\n- Redis,\n- Kafka,\n- Hadoop,\n- and machine learning,\n\nand I will actually integrate AI as well. So yeah, these were all the things which I would require to make the whole system. And yeah, this is going to be three weeks timeline, and after three weeks I can show you the working prototype. How is it?"
+    "expected": "Okay. So, I'm currently working on a website, but for that I would require multiple things. It would be:\n• front-end\n• back-end\n• database\n• CI/CD\n• Git\n• GitHub\n• Redis\n• Kafka\n• Hadoop\n• and machine learning\n\nand I will actually integrate AI as well.\n\nSo yeah, these were all the things which I would require to make the whole system. And yeah, this is going to be three weeks timeline, and after three weeks I can show you the working prototype. How is it?"
   },
   {
     "name": "full core example 1 word fidelity",
@@ -142,22 +142,22 @@
   {
     "name": "multiple lists",
     "input": "Tools: Rust, Swift, C++. Supplies: paper, pens, ink.",
-    "expected": "Tools:\n- Rust,\n- Swift,\n- C++.\n\nSupplies:\n- paper,\n- pens,\n- ink."
+    "expected": "Tools:\n• Rust\n• Swift\n• C++.\n\nSupplies:\n• paper\n• pens\n• ink."
   },
   {
     "name": "unpunctuated introduced shopping items",
     "input": "Shopping list: lentils and batteries and shampoo",
-    "expected": "Shopping list:\n- lentils\n- and batteries\n- and shampoo"
+    "expected": "Shopping list:\n• lentils\n• and batteries\n• and shampoo"
   },
   {
     "name": "spoken multiple things with arbitrary tasks",
     "input": "I need multiple things like go shopping and fill the form and call my nanny.",
-    "expected": "I need multiple things like:\n- go shopping\n- and fill the form\n- and call my nanny."
+    "expected": "I need multiple things like:\n• go shopping\n• and fill the form\n• and call my nanny."
   },
   {
-    "name": "unintroduced conjunctions stay prose",
+    "name": "unintroduced goals become a list",
     "input": "I want to go shopping and fill the form and call my nanny.",
-    "expected": "I want to go shopping and fill the form and call my nanny."
+    "expected": "I want to:\n• go shopping\n• and fill the form\n• and call my nanny."
   },
   {
     "name": "err is a meaningful verb",
@@ -172,6 +172,206 @@
   {
     "name": "literal final period does not swallow prose",
     "input": "Documents: README.md, CHANGELOG.md, and LICENSE.txt. Call me later.",
-    "expected": "Documents:\n- README.md,\n- CHANGELOG.md,\n- and LICENSE.txt.\n\nCall me later."
+    "expected": "Documents:\n• README.md\n• CHANGELOG.md\n• and LICENSE.txt.\n\nCall me later."
+  },
+  {
+    "name": "reported Hindi shopping list",
+    "input": "ओके, तो मुझे मार्केट से बहुत सारी चीजें लानी हैं, जैसे प्रेस लाना है, नारियल तेल लाना है, एक एक्सटेंशन बोर्ड लाना है, एक परदा लाना है, एक बेडशीट लानी है और मुझे मेरे फ्रेंड के लिए एक लैपटॉप भी खरीदना है।",
+    "expected": "ओके, तो मुझे मार्केट से बहुत सारी चीजें लानी हैं, जैसे:\n• प्रेस लाना है\n• नारियल तेल लाना है\n• एक एक्सटेंशन बोर्ड लाना है\n• एक परदा लाना है\n• एक बेडशीट लानी है\n• और मुझे मेरे फ्रेंड के लिए एक लैपटॉप भी खरीदना है।"
+  },
+  {
+    "name": "reported Dmart with Hindi interruption and currency",
+    "input": "Okay, so I'm going D-Mart, and in D-Mart I will actually buy multiple things, like first I would go for Balaji chips, then maybe a wiper, a broomstick, maybe Chupa Chups, and Omesh, तेको क्या चाहिए? And yeah, हाँ, hundred rupees T-shirt.",
+    "expected": "Okay, so I'm going D-Mart, and in D-Mart I will actually buy multiple things, like:\n• first I would go for Balaji chips\n• then maybe a wiper\n• a broomstick\n• maybe Chupa Chups\n\nand Omesh, तेको क्या चाहिए?\n\nAnd yeah, हाँ,\n• ₹100 T-shirt."
+  },
+  {
+    "name": "no intro nouns",
+    "input": "Milk, rice, coconut oil, curtains, and batteries.",
+    "expected": "• Milk\n• rice\n• coconut oil\n• curtains\n• and batteries."
+  },
+  {
+    "name": "no intro Hindi parallel purchases",
+    "input": "प्रेस लाना है, नारियल तेल लाना है, परदा लाना है और बेडशीट लानी है।",
+    "expected": "• प्रेस लाना है\n• नारियल तेल लाना है\n• परदा लाना है\n• और बेडशीट लानी है।"
+  },
+  {
+    "name": "no intro Hindi noun items",
+    "input": "दूध, चावल, तेल और चीनी।",
+    "expected": "• दूध\n• चावल\n• तेल\n• और चीनी।"
+  },
+  {
+    "name": "no intro Marathi items",
+    "input": "दूध, तांदूळ, साखर आणि तेल.",
+    "expected": "• दूध\n• तांदूळ\n• साखर\n• आणि तेल."
+  },
+  {
+    "name": "no intro Gujarati items",
+    "input": "દૂધ, ચોખા, તેલ અને ખાંડ.",
+    "expected": "• દૂધ\n• ચોખા\n• તેલ\n• અને ખાંડ."
+  },
+  {
+    "name": "no intro tasks",
+    "input": "I want to go shopping and fill the form and call my nanny.",
+    "expected": "I want to:\n• go shopping\n• and fill the form\n• and call my nanny."
+  },
+  {
+    "name": "ordinary full clauses remain prose",
+    "input": "I went home, I was tired, and I fell asleep.",
+    "expected": "I went home, I was tired, and I fell asleep."
+  },
+  {
+    "name": "emotional description remains prose",
+    "input": "I'm tired, cold, and hungry.",
+    "expected": "I'm tired, cold, and hungry."
+  },
+  {
+    "name": "quotation remains exact",
+    "input": "She said \"Milk, rice, and oil\" and I repeated it.",
+    "expected": "She said \"Milk, rice, and oil\" and I repeated it."
+  },
+  {
+    "name": "implicit procedural instructions",
+    "input": "Open the document, edit the title, save the document, and close the window.",
+    "expected": "1. Open the document\n2. edit the title\n3. save the document\n4. and close the window."
+  },
+  {
+    "name": "implicit activities not reordered",
+    "input": "Call Dad, fill the form, and buy groceries.",
+    "expected": "• Call Dad\n• fill the form\n• and buy groceries."
+  },
+  {
+    "name": "currency families",
+    "input": "hundred rupees, fifty dollars, twenty euros, ten pounds",
+    "expected": "• ₹100\n• $50\n• €20\n• £10"
+  },
+  {
+    "name": "Hindi amount currency",
+    "input": "मुझे सौ रुपये चाहिए। और दो सौ रुपये भी।",
+    "expected": "मुझे ₹100 चाहिए। और ₹200 भी।"
+  },
+  {
+    "name": "explicit foreign dollar identities",
+    "input": "25 Canadian dollars and 30 Australian dollars",
+    "expected": "• CA$25\n• and A$30"
+  },
+  {
+    "name": "foreign named currencies",
+    "input": "100 Japanese yen and 500 South Korean won",
+    "expected": "• ¥100\n• and ₩500"
+  },
+  {
+    "name": "currency protects numbers dates",
+    "input": "On 14 October 2026 I paid 1234.50 euros, not 1250 euros.",
+    "expected": "On 14 October 2026 I paid €1234.50, not €1250."
+  },
+  {
+    "name": "currency literals preserved",
+    "input": "The code says `100 USD`, and the quote is \"fifty dollars\".",
+    "expected": "The code says `100 USD`, and the quote is \"fifty dollars\"."
+  },
+  {
+    "name": "technical ISO collision guarded",
+    "input": "CAD 101 course, ALL 100 rows, and HTTP 200 status.",
+    "expected": "• CAD 101 course\n• ALL 100 rows\n• and HTTP 200 status."
+  },
+  {
+    "name": "ambiguous currency not guessed",
+    "input": "100 pesos and 200 crowns",
+    "expected": "• 100 pesos\n• and 200 crowns"
+  },
+  {
+    "name": "dollars are not the verb won",
+    "input": "I won 100 dollars.",
+    "expected": "I won $100."
+  },
+  {
+    "name": "pounds of weight are not money",
+    "input": "The bag weighs ten pounds of rice.",
+    "expected": "The bag weighs ten pounds of rice."
+  },
+  {
+    "name": "signed decimal currency",
+    "input": "I paid negative ten euros, and USD 12.50.",
+    "expected": "I paid -€10, and $12.50."
+  },
+  {
+    "name": "word decimal currency",
+    "input": "It costs two point five euros.",
+    "expected": "It costs €2.5."
+  },
+  {
+    "name": "unsupported fraction not partly guessed",
+    "input": "डेढ़ सौ रुपये चाहिए।",
+    "expected": "डेढ़ सौ रुपये चाहिए।"
+  },
+  {
+    "name": "native digits in other currencies",
+    "input": "२५ यूरो चाहिए।",
+    "expected": "€25 चाहिए।"
+  },
+  {
+    "name": "Arabic currency digits",
+    "input": "١٠٠ USD",
+    "expected": "$100"
+  },
+  {
+    "name": "money quantity comma is not a bullet separator",
+    "input": "The price is 1,250.50 euros.",
+    "expected": "The price is €1,250.50."
+  },
+  {
+    "name": "medical items without trigger",
+    "input": "Bandages, gauze, saline, and tape.",
+    "expected": "• Bandages\n• gauze\n• saline\n• and tape."
+  },
+  {
+    "name": "lecture terms without trigger",
+    "input": "Polymorphism, encapsulation, inheritance, and abstraction.",
+    "expected": "• Polymorphism\n• encapsulation\n• inheritance\n• and abstraction."
+  },
+  {
+    "name": "mixed script purchases without trigger",
+    "input": "Coffee, दूध, तांदूळ, and bread.",
+    "expected": "• Coffee\n• दूध\n• तांदूळ\n• and bread."
+  },
+  {
+    "name": "homogeneous two bare items",
+    "input": "Milk and rice.",
+    "expected": "• Milk\n• and rice."
+  },
+  {
+    "name": "paired prose not forced into a list",
+    "input": "I like milk and rice.",
+    "expected": "I like milk and rice."
+  },
+  {
+    "name": "two future Marathi actions",
+    "input": "दूध आणायचे आहे, आणि भाजी आणायची आहे.",
+    "expected": "• दूध आणायचे आहे\n• आणि भाजी आणायची आहे."
+  },
+  {
+    "name": "two explicit steps without numbering",
+    "input": "Open the file and save it.",
+    "expected": "1. Open the file\n2. and save it."
+  },
+  {
+    "name": "unknown currency stays unknown",
+    "input": "I paid 100 unknown currency.",
+    "expected": "I paid 100 unknown currency."
+  },
+  {
+    "name": "Tamil coordinated nouns",
+    "input": "பால், அரிசி மற்றும் எண்ணெய்.",
+    "expected": "• பால்\n• அரிசி\n• மற்றும் எண்ணெய்."
+  },
+  {
+    "name": "Punjabi coordinated nouns",
+    "input": "ਦੁੱਧ, ਚੌਲ ਅਤੇ ਤੇਲ.",
+    "expected": "• ਦੁੱਧ\n• ਚੌਲ\n• ਅਤੇ ਤੇਲ."
+  },
+  {
+    "name": "commodity quantities are not guessed currencies",
+    "input": "I need 100 gold rings.",
+    "expected": "I need 100 gold rings."
   }
 ]

@@ -47,7 +47,7 @@ public:
         {std::lock_guard lock(mutex_);if(state_.busy)return;state_={};state_.busy=true;state_.message=L"Checking for updates…";}
         launch([this]{
             auto releases=winrt::Windows::Data::Json::JsonArray::Parse(updateText(L"https://api.github.com/repos/rachitkothadia/FlowGPT/releases?per_page=100"));
-            auto newest=*updateVersion(L"1.2.0");std::wstring version,file,url,checksum;
+            auto newest=*updateVersion(L"1.3.0");std::wstring version,file,url,checksum;
             for(auto item:releases){auto release=item.GetObject();if(release.GetNamedBoolean(L"draft",false))continue;
                 auto assets=release.GetNamedArray(L"assets");std::wstring candidate,download,hash;
                 for(auto asset:assets){auto a=asset.GetObject();auto name=std::wstring(a.GetNamedString(L"name"));

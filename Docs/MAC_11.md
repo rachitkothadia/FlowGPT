@@ -11,7 +11,7 @@ Closing the window keeps FlowGpt in the menu bar. Choose **Quit FlowGpt** from i
 
 ## Formatting
 
-FlowGpt uses instant native presentation, with no additional AI request. It preserves returned words, word order, repeated speech, self-corrections, language scripts, names, numbers, technical terms, paths, and quotations. It formats clearly introduced enumerations as bullets, spoken steps as numbered lines and explicit to-do lists as checkboxes. Clear hesitation sounds can be removed. It does not guess lists from conversation, guess quotations, translate, rewrite grammar, or uppercase loud speech. Ambiguous fillers remain unchanged. Quoted text, code, URLs, and paths retain their literal content, even within a formatted list.
+FlowGpt uses instant native presentation, with no additional AI request. Outside authorized currency amount normalization and filler removal, it preserves returned words, word order, repeated speech, self-corrections, language scripts, names, numbers, technical terms, paths, and quotations. It detects coordinated item phrases and repeated actions without requiring introduction words. Related items use • bullets, procedural actions use numbered lines, and identifiable currency amounts use symbols or currency codes. Clear hesitation sounds can be removed. It does not guess lists from conversation, guess quotations, translate, rewrite grammar, or uppercase loud speech. Ambiguous fillers remain unchanged. Quoted text, code, URLs, and paths retain their literal content, even within a formatted list.
 
 History retains both the original returned transcript and the displayed version. **Copy original** appears whenever presentation differs. This preserves the transcription provider's output; FlowGpt cannot guarantee that provider recognized every spoken word correctly.
 
@@ -39,3 +39,6 @@ A disposable native Word document received and confirmed the complete English/Hi
 
 
 For 1.2 permission and formatting details, see [the release notes](FLOWGPT_12.md). Indicators now use the running app’s actual grants. Idle ChatGPT pages do not show another microphone prompt. A new ad hoc preview build may still need renewed macOS grants after installation; a stable Developer ID certificate is needed across upgrades.
+
+
+[FlowGPT 1.3 changes and verification](https://github.com/rachitkothadia/FlowGPT/blob/main/Docs/FLOWGPT_13.md).

@@ -35,6 +35,7 @@ mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 lipo -create "$arm_path/FlowGpt" "$x86_path/FlowGpt" -output "$app/Contents/MacOS/FlowGpt"
 cp Resources/Info.plist "$app/Contents/Info.plist"
 cp Docs/MAC_11.md "$app/Contents/Resources/UserGuide.md"
+cp Shared/Data/UNICODE-LICENSE.txt "$app/Contents/Resources/CurrencyDataLicense.txt"
 swift Scripts/make-icon.swift "$stage/Flow.iconset"
 iconutil -c icns "$stage/Flow.iconset" -o "$app/Contents/Resources/Flow.icns"
 

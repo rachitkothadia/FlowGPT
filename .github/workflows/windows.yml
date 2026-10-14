@@ -14,6 +14,7 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
       - name: Portable policy tests
         run: |
+          python Scripts/currency-data.py
           cmake -S Windows -B Windows/test-build
           cmake --build Windows/test-build --config Release
           ctest --test-dir Windows/test-build -C Release --output-on-failure
@@ -145,7 +146,7 @@ jobs:
           if (-not $p.WaitForExit(90000)) { $p.Kill(); throw 'Installer timeout' }
           if ($p.ExitCode -ne 0 -or -not (Test-Path "$destination/FlowGPT.exe")) { throw 'Installation failed' }
           $checks.installSucceeded = $true
-          if ((Get-Item "$destination/FlowGPT.exe").VersionInfo.FileVersion -notlike '1.2.0*' -or -not (Test-Path $marker)) { throw 'Published baseline replacement did not preserve data' }
+          if ((Get-Item "$destination/FlowGPT.exe").VersionInfo.FileVersion -notlike '1.3.0*' -or -not (Test-Path $marker)) { throw 'Published baseline replacement did not preserve data' }
           $checks.previousVersionUpgradePreservesData = $true
           $original = (Get-FileHash Windows/out/x64/Release/FlowGPT.exe).Hash
           if ((Get-FileHash "$destination/FlowGPT.exe").Hash -ne $original) { throw 'Installed executable differs' }

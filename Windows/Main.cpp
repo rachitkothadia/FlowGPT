@@ -231,13 +231,13 @@ struct App : ApplicationT<App,winrt::Microsoft::UI::Xaml::Markup::IXamlMetadataP
         shortcut.SelectionChanged([this,shortcut](auto&&,auto&&){safely([&]{if(shortcut.SelectedIndex()<0||busy())return;hotkeyChoice=unsigned(shortcut.SelectedIndex());registerHotkey();controller->store.setting(L"shortcut",flow::JValue::CreateNumberValue(hotkeyChoice));renderStatus();});});content.Children().Append(shortcut);
         ToggleSwitch startup;startup.Header(box_value(L"Start FlowGPT when I sign in"));startup.IsOn(flow::startupEnabled());startup.Toggled([this,startup](auto&&,auto&&){safely([&]{flow::startup(startup.IsOn());});});content.Children().Append(startup);
         content.Children().Append(button(L"Windows startup settings",[]{ShellExecuteW(nullptr,L"open",L"ms-settings:startupapps",nullptr,nullptr,SW_SHOWNORMAL);}));
-        ToggleSwitch format;format.Header(box_value(L"Format lists and steps"));format.IsOn(controller->store.settings.GetNamedBoolean(L"readableFormatting",true));format.Toggled([this,format](auto&&,auto&&){safely([&]{controller->store.setting(L"readableFormatting",flow::JValue::CreateBooleanValue(format.IsOn()));});});content.Children().Append(format);
+        ToggleSwitch format;format.Header(box_value(L"Format lists and currency amounts"));format.IsOn(controller->store.settings.GetNamedBoolean(L"readableFormatting",true));format.Toggled([this,format](auto&&,auto&&){safely([&]{controller->store.setting(L"readableFormatting",flow::JValue::CreateBooleanValue(format.IsOn()));});});content.Children().Append(format);
         content.Children().Append(label(L"Preserves words, repetitions, languages and scripts. The original text stays in History.",13,true));
         content.Children().Append(heading(L"Appearance",17));ComboBox theme;for(auto name:{L"System",L"Light",L"Dark"})theme.Items().Append(box_value(name));auto current=controller->store.settings.GetNamedString(L"appearance",L"System");theme.SelectedIndex(current==L"Light"?1:current==L"Dark"?2:0);
         theme.SelectionChanged([this,theme](auto&&,auto&&){safely([&]{int index=theme.SelectedIndex();if(index<0)return;navigation.RequestedTheme(index==1?ElementTheme::Light:index==2?ElementTheme::Dark:ElementTheme::Default);controller->store.setting(L"appearance",flow::JValue::CreateStringValue(index==1?L"Light":index==2?L"Dark":L"System"));});});content.Children().Append(theme);
     }
     void about(){
-        content.Children().Append(heading(L"Version 1.2.0 · Windows preview",18));
+        content.Children().Append(heading(L"Version 1.3.0 · Windows preview",18));
         content.Children().Append(label(L"Speak into your ChatGPT connection. Your dictations are saved on this computer.",14,true));
         content.Children().Append(heading(L"Updates",17));updateStatus=label(updates.state().message);content.Children().Append(updateStatus);
         updateAction=button(L"Check for updates",[this]{auto state=updates.state();if(busy())return;if(state.downloaded){if(updates.install(hwnd))quit();}else if(state.available)updates.download();else updates.check();});content.Children().Append(updateAction);renderUpdates();

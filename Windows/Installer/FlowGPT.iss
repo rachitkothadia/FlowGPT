@@ -1,7 +1,7 @@
 [Setup]
 AppId={{C0DD7357-60AA-4124-B232-912E1B8F94B4}
 AppName=FlowGPT
-AppVersion=1.2.0
+AppVersion=1.3.0
 AppPublisher=Rachit Kothadia
 AppPublisherURL=https://github.com/rachitkothadia/FlowGPT
 DefaultDirName={localappdata}\Programs\FlowGPT
@@ -11,7 +11,7 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0.22000
 OutputDir=..\..\release\windows
-OutputBaseFilename=FlowGPT-1.2.0-Windows-x64-Setup
+OutputBaseFilename=FlowGPT-1.3.0-Windows-x64-Setup
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
@@ -30,6 +30,8 @@ Source: "..\out\x64\Release\*"; DestDir: "{app}"; Excludes: "*.pdb,native-tests.
 Source: "WebView2Bootstrapper.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall
 Source: "..\..\LICENSE"; DestDir: "{app}"
 Source: "..\THIRD_PARTY_NOTICES.md"; DestDir: "{app}"
+
+Source: "..\..\Shared\Data\UNICODE-LICENSE.txt"; DestDir: "{app}\Licenses"
 
 [Icons]
 Name: "{group}\FlowGPT"; Filename: "{app}\FlowGPT.exe"
