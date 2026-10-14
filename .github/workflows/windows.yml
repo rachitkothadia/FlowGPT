@@ -117,9 +117,13 @@ jobs:
           $oldInstaller = Join-Path $env:RUNNER_TEMP 'FlowGPT-1.0.0-Windows-x64-Setup.exe'
           $oldRelease = 'https://github.com/rachitkothadia/FlowGPT/releases/download/windows-v1.0.0-preview'
           Invoke-WebRequest "$oldRelease/FlowGPT-1.0.0-Windows-x64-Setup.exe" -OutFile $oldInstaller
-          $oldSums = (Invoke-WebRequest "$oldRelease/SHA256SUMS.txt").Content
+          $oldSumsFile = Join-Path $env:RUNNER_TEMP 'FlowGPT-1.0-SHA256SUMS.txt'
+          Invoke-WebRequest "$oldRelease/SHA256SUMS.txt" -OutFile $oldSumsFile
+          $oldSums = Get-Content $oldSumsFile -Raw -Encoding utf8
           $checksumLines = @($oldSums -split "`n" | Where-Object { $_.Trim() -match '^[a-fA-F0-9]{64}  FlowGPT-1\.0\.0-Windows-x64-Setup\.exe$' })
-          if ($checksumLines.Count -ne 1 -or (Get-FileHash $oldInstaller -Algorithm SHA256).Hash.ToLowerInvariant() -ne $checksumLines[0].Substring(0,64).ToLowerInvariant()) { throw 'Released 1.0 installer checksum mismatch' }
+          $oldActual = (Get-FileHash $oldInstaller -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($checksumLines.Count -ne 1) { throw "Released 1.0 checksum file must contain exactly one entry; got $($checksumLines.Count)" }
+          if ($oldActual -ne $checksumLines[0].Trim().Substring(0,64).ToLowerInvariant()) { throw "Released 1.0 installer checksum mismatch: $oldActual" }
           $p = Start-Process $oldInstaller -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /TASKS=startup /DIR=`"$destination`"" -PassThru
           if (-not $p.WaitForExit(90000)) { $p.Kill(); throw 'Previous version installation timeout' }
           if ($p.ExitCode -ne 0 -or (Get-Item "$destination/FlowGPT.exe").VersionInfo.FileVersion -notlike '1.0.0*') { throw 'Released 1.0 app was not installed for upgrade fixture' }
