@@ -5,7 +5,8 @@
 namespace flow {
 inline bool richProbe=false;
 inline LRESULT CALLBACK probeProc(HWND hwnd,UINT message,WPARAM w,LPARAM l){
-    if(message==WM_CREATE){HWND edit=CreateWindowExW(0,richProbe?L"RICHEDIT50W":L"EDIT",L"",WS_CHILD|WS_VISIBLE|ES_MULTILINE|WS_BORDER,20,20,450,140,hwnd,reinterpret_cast<HMENU>(42),GetModuleHandleW(nullptr),nullptr);SetFocus(edit);return 0;}
+    if(message==WM_CREATE){HWND edit=CreateWindowExW(0,richProbe?L"RICHEDIT50W":L"EDIT",L"",WS_CHILD|WS_VISIBLE|ES_MULTILINE|WS_BORDER,20,20,450,90,hwnd,reinterpret_cast<HMENU>(42),GetModuleHandleW(nullptr),nullptr);CreateWindowExW(0,L"EDIT",L"",WS_CHILD|WS_VISIBLE|WS_BORDER,20,115,450,30,hwnd,reinterpret_cast<HMENU>(43),GetModuleHandleW(nullptr),nullptr);SetFocus(edit);return 0;}
+    if(message==WM_APP+5){SetFocus(GetDlgItem(hwnd,int(w)));return 0;}
     if(message==WM_ACTIVATE&&LOWORD(w)!=WA_INACTIVE){SetFocus(GetDlgItem(hwnd,42));return 0;}
     if(message==WM_DESTROY){PostQuitMessage(0);return 0;}
     return DefWindowProcW(hwnd,message,w,l);
@@ -55,6 +56,11 @@ inline int nativeTests(){
                 auto restoredGraphics=graphicsBytes(target);check(L"clipboardBitmapRestored",!graphics.first.empty()&&restoredGraphics.first==graphics.first);check(L"clipboardMetafileRestored",!graphics.second.empty()&&restoredGraphics.second==graphics.second);
                 ClipboardLease newer;newer.write(target,speech);putFixtureClipboard(target,L"User copied newer text");newer.restore(target);check(L"newUserCopyPreserved",fixtureClipboard(target)==L"User copied newer text");
                 insertion.capture();SendMessageW(field,EM_SETREADONLY,TRUE,0);check(L"readOnlyTargetRefused",!insertion.valid());SendMessageW(field,EM_SETREADONLY,FALSE,0);
+                SendMessageW(field,WM_SETTEXT,0,reinterpret_cast<LPARAM>(L""));SendMessageW(target,WM_APP+5,42,0);Sleep(100);
+                bool armed=false;unsigned queries=0;Insertion fieldRace([&](IUIAutomationElement* element,PATTERNID pattern,REFIID iid,void** value){
+                    HRESULT result=element->GetCurrentPatternAs(pattern,iid,value);if(armed&&++queries==2)SendMessageW(target,WM_APP+5,43,0);return result;});
+                bool raceCaptured=fieldRace.capture();armed=true;check(L"sameWindowFocusSwitchRefused",raceCaptured&&!fieldRace.paste(target,L"Private fixture must not appear"));
+                Sleep(100);wchar_t firstText[256]{},secondText[256]{};SendMessageW(field,WM_GETTEXT,256,reinterpret_cast<LPARAM>(firstText));SendMessageW(GetDlgItem(target,43),WM_GETTEXT,256,reinterpret_cast<LPARAM>(secondText));check(L"sameWindowFocusSwitchPastesNeitherField",!firstText[0]&&!secondText[0]);fieldRace.restore(target);SendMessageW(target,WM_APP+5,42,0);Sleep(100);
                 insertion.capture();SetForegroundWindow(GetShellWindow());check(L"changedForegroundRefused",!insertion.valid());PostMessageW(target,WM_CLOSE,0,0);
             }
             WaitForSingleObject(process.hProcess,3000);CloseHandle(process.hThread);CloseHandle(process.hProcess);

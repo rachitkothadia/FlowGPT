@@ -85,11 +85,23 @@ class Insertion {
 public:
     using PatternQuery=std::function<HRESULT(IUIAutomationElement*,PATTERNID,REFIID,void**)>;
 private:
+    class FocusEvents final:public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>,IUIAutomationFocusChangedEventHandler,Microsoft::WRL::FtmBase>{
+        std::shared_ptr<std::atomic<uint64_t>> epoch_;
+    public:
+        explicit FocusEvents(std::shared_ptr<std::atomic<uint64_t>> epoch):epoch_(std::move(epoch)){}
+        HRESULT STDMETHODCALLTYPE HandleFocusChangedEvent(IUIAutomationElement*)override{epoch_->fetch_add(1);return S_OK;}
+    };
     std::mutex mutex_;
     std::condition_variable wake_;
     std::deque<std::function<void()>> jobs_;
     bool stopping_=false;
     ComPtr<IUIAutomation> automation_;
+    std::shared_ptr<std::atomic<uint64_t>> focusEpoch_=std::make_shared<std::atomic<uint64_t>>(0);
+    ComPtr<FocusEvents> focusEvents_;
+    bool focusSubscribed_=false;
+    HWND nativeFocus_{};
+    std::vector<int> rawId_;
+    uint64_t validatedFocusEpoch_=0;
     HWND window_{},leaseOwner_{};
     DWORD pid_{};
     std::vector<int> id_;
@@ -132,8 +144,13 @@ private:
         int count{};if(FAILED(selection->get_Length(&count))||count!=1)return false;
         ComPtr<IUIAutomationTextRange> range;return SUCCEEDED(selection->GetElement(0,&range))&&writableRange(range.Get());
     }
-    ComPtr<IUIAutomationElement> editor(){
+    HWND nativeFocus()const{
+        GUITHREADINFO info{sizeof(info)};DWORD thread=GetWindowThreadProcessId(window_,nullptr);
+        return thread&&GetGUIThreadInfo(thread,&info)&&info.hwndFocus&&(info.hwndFocus==window_||IsChild(window_,info.hwndFocus))?info.hwndFocus:nullptr;
+    }
+    ComPtr<IUIAutomationElement> editor(ComPtr<IUIAutomationElement>* raw=nullptr){
         ComPtr<IUIAutomationElement> focused;if(!automation_||FAILED(automation_->GetFocusedElement(&focused))||!allowed(focused.Get()))return{};
+        if(raw)*raw=focused;
         ComPtr<IUIAutomationTreeWalker> walker;automation_->get_ControlViewWalker(&walker);
         for(unsigned depth=0;focused&&depth<6;++depth){
             int process{};if(FAILED(focused->get_CurrentProcessId(&process))||DWORD(process)!=pid_)return{};
@@ -142,15 +159,18 @@ private:
         }return{};
     }
     bool captureImpl(HWND target,uint64_t generation){
-        sent_=false;id_.clear();window_=target;GetWindowThreadProcessId(window_,&pid_);
-        if(!window_||GetForegroundWindow()!=window_||pid_==GetCurrentProcessId())return false;
-        auto e=editor();auto id=runtimeId(e.Get());
-        if(generation!=generation_||GetForegroundWindow()!=window_||id.empty())return false;
-        id_=std::move(id);return true;
+        sent_=false;id_.clear();rawId_.clear();window_=target;GetWindowThreadProcessId(window_,&pid_);nativeFocus_=nativeFocus();
+        if(!focusSubscribed_||!nativeFocus_||!window_||GetForegroundWindow()!=window_||pid_==GetCurrentProcessId())return false;
+        auto epoch=focusEpoch_->load();ComPtr<IUIAutomationElement> raw;auto e=editor(&raw);auto id=runtimeId(e.Get());auto rawId=runtimeId(raw.Get());
+        if(generation!=generation_||GetForegroundWindow()!=window_||nativeFocus()!=nativeFocus_||focusEpoch_->load()!=epoch||id.empty()||rawId.empty())return false;
+        id_=std::move(id);rawId_=std::move(rawId);return true;
     }
     bool validImpl(){
-        if(!automation_||GetForegroundWindow()!=window_)return false;DWORD pid{};GetWindowThreadProcessId(window_,&pid);if(pid!=pid_)return false;
-        auto e=editor();auto currentId=runtimeId(e.Get());return sameTarget(reinterpret_cast<uintptr_t>(window_),reinterpret_cast<uintptr_t>(GetForegroundWindow()),id_,currentId);
+        if(!automation_||!focusSubscribed_||GetForegroundWindow()!=window_||nativeFocus()!=nativeFocus_)return false;DWORD pid{};GetWindowThreadProcessId(window_,&pid);if(pid!=pid_)return false;
+        auto epoch=focusEpoch_->load();ComPtr<IUIAutomationElement> raw;auto e=editor(&raw);auto currentId=runtimeId(e.Get());auto currentRawId=runtimeId(raw.Get());
+        ComPtr<IUIAutomationElement> finalRaw;if(FAILED(automation_->GetFocusedElement(&finalRaw))||!finalRaw)return false;auto finalRawId=runtimeId(finalRaw.Get());
+        bool same=sameTarget(reinterpret_cast<uintptr_t>(window_),reinterpret_cast<uintptr_t>(GetForegroundWindow()),id_,currentId)&&!rawId_.empty()&&rawId_==currentRawId&&rawId_==finalRawId&&nativeFocus()==nativeFocus_&&focusEpoch_->load()==epoch;
+        if(same)validatedFocusEpoch_=epoch;return same;
     }
     bool pasteImpl(HWND owner,const std::wstring& text,uint64_t generation){
         if(generation!=generation_||sent_||!validText(text)||!validImpl())return false;
@@ -162,7 +182,7 @@ private:
         events[0].ki.wVk=VK_CONTROL;events[1].ki.wVk='V';events[2].ki.wVk='V';events[2].ki.dwFlags=KEYEVENTF_KEYUP;events[3].ki.wVk=VK_CONTROL;events[3].ki.dwFlags=KEYEVENTF_KEYUP;
         // Providers can block while the user switches applications. Check the
         // native foreground again after every provider call, just before input.
-        if(generation!=generation_||GetForegroundWindow()!=window_){lease_->restore(owner);lease_.reset();return false;}
+        if(generation!=generation_||nativeFocus()!=nativeFocus_||focusEpoch_->load()!=validatedFocusEpoch_||GetForegroundWindow()!=window_){lease_->restore(owner);lease_.reset();return false;}
         sent_=true;UINT delivered=SendInput(4,events,sizeof(INPUT));
         if(delivered!=4){INPUT release[2]{};for(auto& e:release){e.type=INPUT_KEYBOARD;e.ki.dwFlags=KEYEVENTF_KEYUP;}release[0].ki.wVk='V';release[1].ki.wVk=VK_CONTROL;SendInput(2,release,sizeof(INPUT));}
         return delivered==4;
@@ -175,9 +195,10 @@ public:
     explicit Insertion(PatternQuery query={}):query_(query?std::move(query):PatternQuery([](IUIAutomationElement* e,PATTERNID id,REFIID iid,void** value){return e->GetCurrentPatternAs(id,iid,value);})),thread_([this]{
         HRESULT initialized=CoInitializeEx(nullptr,COINIT_MULTITHREADED);
         if(SUCCEEDED(initialized)){CoCreateInstance(CLSID_CUIAutomation,nullptr,CLSCTX_INPROC_SERVER,IID_PPV_ARGS(&automation_));ComPtr<IUIAutomation2> timed;
-            if(automation_&&SUCCEEDED(automation_.As(&timed))&&timed){timed->put_ConnectionTimeout(250);timed->put_TransactionTimeout(250);}}
+            if(automation_&&SUCCEEDED(automation_.As(&timed))&&timed){timed->put_ConnectionTimeout(250);timed->put_TransactionTimeout(250);}
+            if(automation_){focusEvents_=Microsoft::WRL::Make<FocusEvents>(focusEpoch_);if(focusEvents_)focusSubscribed_=SUCCEEDED(automation_->AddFocusChangedEventHandler(nullptr,focusEvents_.Get()));}}
         for(;;){std::function<void()> job;{std::unique_lock lock(mutex_);wake_.wait(lock,[this]{return stopping_||!jobs_.empty();});if(jobs_.empty()&&stopping_)break;job=std::move(jobs_.front());jobs_.pop_front();}job();}
-        if(lease_)lease_->restore(leaseOwner_);lease_.reset();automation_.Reset();if(SUCCEEDED(initialized))CoUninitialize();
+        if(lease_)lease_->restore(leaseOwner_);lease_.reset();if(focusSubscribed_)automation_->RemoveFocusChangedEventHandler(focusEvents_.Get());focusEvents_.Reset();automation_.Reset();if(SUCCEEDED(initialized))CoUninitialize();
     }){}
     ~Insertion(){++generation_;{std::lock_guard lock(mutex_);stopping_=true;}wake_.notify_one();if(thread_.joinable())thread_.join();}
     void beginCapture(){auto version=++generation_;HWND target=GetForegroundWindow();captureFuture_=submit([this,target,version]{return captureImpl(target,version);});}
