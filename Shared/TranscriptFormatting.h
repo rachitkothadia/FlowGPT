@@ -98,7 +98,8 @@ inline std::string spokenSequence(const std::string& s) {
             if(w.number==next){positions.push_back(i);++next;}break;
         }}
     }
-    if(positions.size()<2||!cue(s.substr(0,positions.front())))return s;
+    if(positions.size()<2)return s;
+    auto sequencePrefix=trim(s.substr(0,positions.front()));if(!sequencePrefix.empty()&&!cue(sequencePrefix))return s;
     size_t tail=s.size();
     for(const auto* marker:{"aur haan","और हाँ","અને હા","anyway ","afterwards "}) {
         auto p=t.find(marker,positions.back()+1);if(p!=std::string::npos&&boundary(s,p))tail=std::min(tail,p);

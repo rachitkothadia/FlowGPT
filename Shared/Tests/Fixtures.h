@@ -238,5 +238,8 @@ And yeah, हाँ,
 {R"fixture(Punjabi coordinated nouns)fixture",R"fixture(ਦੁੱਧ, ਚੌਲ ਅਤੇ ਤੇਲ.)fixture",R"fixture(• ਦੁੱਧ
 • ਚੌਲ
 • ਅਤੇ ਤੇਲ.)fixture"},
-{R"fixture(commodity quantities are not guessed currencies)fixture",R"fixture(I need 100 gold rings.)fixture",R"fixture(I need 100 gold rings.)fixture"}
+{R"fixture(commodity quantities are not guessed currencies)fixture",R"fixture(I need 100 gold rings.)fixture",R"fixture(I need 100 gold rings.)fixture"},
+{R"fixture(bare spoken sequence needs no introduction)fixture",R"fixture(first open the file second edit the title third save it.)fixture",R"fixture(1. first open the file
+2. second edit the title
+3. third save it.)fixture"}
 }; }

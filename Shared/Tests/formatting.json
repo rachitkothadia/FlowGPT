@@ -373,5 +373,10 @@
     "name": "commodity quantities are not guessed currencies",
     "input": "I need 100 gold rings.",
     "expected": "I need 100 gold rings."
+  },
+  {
+    "name": "bare spoken sequence needs no introduction",
+    "input": "first open the file second edit the title third save it.",
+    "expected": "1. first open the file\n2. second edit the title\n3. third save it."
   }
 ]
