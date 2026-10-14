@@ -2,7 +2,7 @@
 """Generate native lookup tables from the pinned, vendored Unicode CLDR data."""
 import json, pathlib, collections, sys
 root=pathlib.Path(__file__).resolve().parent.parent
-data=json.loads((root/'Shared/Data/currencies.json').read_text())
+data=json.loads((root/'Shared/Data/currencies.json').read_text(encoding='utf-8'))
 aliases=collections.defaultdict(set)
 records=data['currencies'];narrow=collections.Counter(x['narrow'] for x in records.values())
 symbols={}
@@ -26,6 +26,6 @@ lines+=['};','inline const std::unordered_map<std::string,std::string>& currency
 for code,symbol in sorted(symbols.items()):lines.append('{'+quote(code)+','+quote(symbol)+'},')
 lines+=['};return data;}','}']
 header='\n'.join(lines)+'\n';p=root/'Shared/CurrencyData.h'
-if '--write' in sys.argv:p.write_text(header)
-elif p.read_text()!=header:raise SystemExit('Currency table is stale')
+if '--write' in sys.argv:p.write_text(header,encoding='utf-8')
+elif p.read_text(encoding='utf-8')!=header:raise SystemExit('Currency table is stale')
 print(json.dumps({'currencies':len(records),'aliases':sum(len(v)==1 for v in aliases.values()),'locales':len(data['locales']),'source_commit':data['commit']}))
