@@ -6,13 +6,13 @@ The Windows implementation uses C++/WinRT, WinUI 3, WASAPI microphone capture, a
 
 You need Windows 11 on an Intel/AMD 64-bit PC, internet access, and your own ChatGPT account with dictation available. No API key is needed.
 
-1. **[Download FlowGPT for Windows (.exe)](https://github.com/rachitkothadia/FlowGPT/releases/download/windows-v1.1.0-preview/FlowGPT-1.1.0-Windows-x64-Setup.exe).**
+1. **[Download FlowGPT for Windows (.exe)](https://github.com/rachitkothadia/FlowGPT/releases/download/v1.1.1/FlowGPT-1.1.1-Windows-x64-Setup.exe).**
 2. **Install it.** Double-click the file, follow the installer, then open **FlowGPT** from the Start menu.
 3. **Connect ChatGPT.** Click **Connect ChatGPT**, sign in, then close the connection window.
 4. **Allow your microphone if recording is blocked.** Open **Windows Settings → Privacy & security → Microphone** and turn on **Microphone access** and **Let desktop apps access your microphone**. Select your input device in FlowGPT Settings if needed.
 5. **Dictate.** Click an editable text field, press **Ctrl + Alt + Space**, speak, then press the same shortcut again to finish.
 
-The installer checks Microsoft WebView2 Runtime automatically. This preview is unsigned, so Windows may show an unknown-publisher warning. See [installation help](../README.md#need-help-installing). The [release page](https://github.com/rachitkothadia/FlowGPT/releases/tag/windows-v1.1.0-preview) includes the EXE and its checksum.
+The installer checks Microsoft WebView2 Runtime automatically. This preview is unsigned, so Windows may show an unknown-publisher warning. See [installation help](../README.md#need-help-installing). The [release page](https://github.com/rachitkothadia/FlowGPT/releases/tag/v1.1.1) includes the EXE and its checksum.
 
 Use **Try dictation** to try recording inside FlowGPT. Results are saved in **History**. Your own local ChatGPT profile is reused between launches and ordinary upgrades; expired sessions need sign-in again.
 

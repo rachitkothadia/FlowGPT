@@ -1,0 +1,16 @@
+{
+  "checks": {
+    "previousVersionInstalled": true,
+    "installSucceeded": true,
+    "previousVersionUpgradePreservesData": true,
+    "installedExecutableMatches": true,
+    "developerReportsExcluded": true,
+    "loginStartupRegistered": true,
+    "installedBackgroundLifecyclePassed": true,
+    "upgradePreservesUserData": true,
+    "uninstallRemovesApplication": true,
+    "uninstallRemovesStartup": true,
+    "uninstallKeepsUserDataByDefault": true
+  },
+  "passed": true
+}
