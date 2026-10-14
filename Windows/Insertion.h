@@ -150,7 +150,7 @@ private:
     }
     bool validImpl(){
         if(!automation_||GetForegroundWindow()!=window_)return false;DWORD pid{};GetWindowThreadProcessId(window_,&pid);if(pid!=pid_)return false;
-        auto e=editor();return sameTarget(reinterpret_cast<uintptr_t>(window_),reinterpret_cast<uintptr_t>(GetForegroundWindow()),id_,runtimeId(e.Get()));
+        auto e=editor();auto currentId=runtimeId(e.Get());return sameTarget(reinterpret_cast<uintptr_t>(window_),reinterpret_cast<uintptr_t>(GetForegroundWindow()),id_,currentId);
     }
     bool pasteImpl(HWND owner,const std::wstring& text,uint64_t generation){
         if(generation!=generation_||sent_||!validText(text)||!validImpl())return false;
@@ -160,6 +160,9 @@ private:
         if(generation!=generation_||!validImpl()){lease_->restore(owner);lease_.reset();return false;}
         INPUT events[4]{};for(auto& e:events)e.type=INPUT_KEYBOARD;
         events[0].ki.wVk=VK_CONTROL;events[1].ki.wVk='V';events[2].ki.wVk='V';events[2].ki.dwFlags=KEYEVENTF_KEYUP;events[3].ki.wVk=VK_CONTROL;events[3].ki.dwFlags=KEYEVENTF_KEYUP;
+        // Providers can block while the user switches applications. Check the
+        // native foreground again after every provider call, just before input.
+        if(generation!=generation_||GetForegroundWindow()!=window_){lease_->restore(owner);lease_.reset();return false;}
         sent_=true;UINT delivered=SendInput(4,events,sizeof(INPUT));
         if(delivered!=4){INPUT release[2]{};for(auto& e:release){e.type=INPUT_KEYBOARD;e.ki.dwFlags=KEYEVENTF_KEYUP;}release[0].ki.wVk='V';release[1].ki.wVk=VK_CONTROL;SendInput(2,release,sizeof(INPUT));}
         return delivered==4;

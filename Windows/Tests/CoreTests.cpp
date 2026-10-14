@@ -58,6 +58,9 @@ int main() {
     // This exposes forwarding just one packet per timer tick without wall-clock sleep.
     for(int tick=0;tick<3600;++tick){for(int i=0;i<10;++i)keepsUp=stream.push(packet.data(),packet.size())&&keepsUp;auto delivery=stream.peekBatch(3200);keepsUp=delivery.samples.size()==1600&&stream.acknowledgeThrough(delivery.id)&&stream.pending()==0&&keepsUp;}
     check(keepsUp&&!stream.failed(),"scheduled batches sustain the full capture rate");
+    AudioQueue stopRace(8);float prefix[]{1,2},tail[]{3,4};stopRace.push(prefix,2);bool producerStopped=false;
+    stopAndDrainCapture(stopRace,[&]{producerStopped=true;check(stopRace.push(tail,1),"in-flight packet remains accepted while hardware stops");},[&]{check(producerStopped,"device stops before pending packets are drained");check(stopRace.push(tail+1,1),"pending final capture packet retained");});
+    check(stopRace.peekBatch(8).samples==std::vector<float>({1,2,3,4})&&!stopRace.push(tail,1),"stop preserves exact audio tail then rejects later speech");
     std::vector<std::wstring> preserved={L"hello testing testing",L"मैं कल कल जाऊंगा नहीं शुक्रवार को",L"मराठी English हिन्दी गुजराती ગુજરાતી",L"garam masala Dmart my maby",L"int err = 3; C++ Rust Java Python",L"https://example.com/a/1. /Users/test/file.txt",L"He said \"1. stay 2. leave\"",L"um uh err meaningful fillers uncertain",L"I need shopping and then passport and call my dad",L"1.25 litres and 2.50 kilograms",L"2. second 3. third"};
     for(auto& text:preserved)check(readableTranscript(text)==text,"native formatting preserves lexical content");
     check(readableTranscript(L"Tasks: 1. Apples apples 2. दूध milk 3. मराठी") == L"Tasks:\n1. Apples apples\n2. दूध milk\n3. मराठी","explicit sequential items get whitespace only");

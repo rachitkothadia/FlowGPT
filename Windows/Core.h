@@ -40,6 +40,12 @@ inline bool sameTarget(uintptr_t originalWindow, uintptr_t currentWindow, const 
     return originalWindow != 0 && originalWindow == currentWindow && !originalId.empty() && originalId == currentId;
 }
 inline bool mayRestore(uint32_t owned, uint32_t current) { return owned == current; }
+// Stop the producer on its capture thread, accept its final pending packets,
+// and only then close the queue. Never freeze from the requesting UI thread.
+template<typename Queue,typename Stop,typename Drain>
+void stopAndDrainCapture(Queue& queue,Stop stop,Drain drain){
+    struct Freeze{Queue& queue;~Freeze(){queue.freeze();}}freeze{queue};stop();drain();
+}
 inline bool validText(const std::wstring& s) { return !s.empty() && s.size() <= 100000 && s.find(L'\0') == std::wstring::npos; }
 struct AudioChunk { uint64_t id = 0; std::vector<float> samples; };
 class AudioQueue {

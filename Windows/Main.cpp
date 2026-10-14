@@ -37,7 +37,7 @@ LONG CALLBACK crashEvidence(EXCEPTION_POINTERS* error){
 struct App : ApplicationT<App,winrt::Microsoft::UI::Xaml::Markup::IXamlMetadataProvider> {
     winrt::Microsoft::UI::Xaml::XamlTypeInfo::XamlControlsXamlMetaDataProvider metadata{nullptr};
     Window window{nullptr};NavigationView navigation{nullptr};StackPanel content{nullptr};TextBlock status{nullptr},updateStatus{nullptr};
-    Button updateAction{nullptr};
+    Button updateAction{nullptr},primaryAction{nullptr};
     DispatcherTimer timer{nullptr};HWND hwnd{};NOTIFYICONDATAW tray{};HICON icon{};flow::Hud hud;flow::Updates updates;
     std::unique_ptr<flow::AppController> controller;
     std::wstring page=L"Home";bool background=false,preview=false,smoke=false,quitting=false,trayReady=false,tickActive=false;unsigned hotkeyChoice=0;double launched=flow::now();
@@ -161,13 +161,14 @@ struct App : ApplicationT<App,winrt::Microsoft::UI::Xaml::Markup::IXamlMetadataP
     }
     void show(){window.AppWindow().Show();window.Activate();render();}
     void quit(){if(quitting)return;quitting=true;if(timer)timer.Stop();hud.update(flow::State::finished,0);if(controller){controller->cancel();controller.reset();}UnregisterHotKey(hwnd,1);Shell_NotifyIconW(NIM_DELETE,&tray);Exit();}
-    void renderStatus(){if(!controller||!status)return;auto state=controller->session.state;status.Text(flow::busy(state)||state!=flow::State::idle?controller->message:controller->browser.status);}
+    void renderStatus(){if(!controller||!status)return;auto state=controller->session.state;status.Text(flow::busy(state)||state!=flow::State::idle?controller->message:controller->browser.status);
+        if(primaryAction){bool recording=state==flow::State::starting||state==flow::State::recording;primaryAction.Content(box_value(recording?L"Finish dictation":controller->browser.connected?L"Try dictation":L"Connect ChatGPT"));primaryAction.IsEnabled(!busy()||recording);}}
     void copy(const std::wstring& text){
         if(!OpenClipboard(hwnd))return;HGLOBAL memory=GlobalAlloc(GMEM_MOVEABLE,(text.size()+1)*sizeof(wchar_t));
         if(memory){void* p=GlobalLock(memory);if(p){memcpy(p,text.c_str(),(text.size()+1)*sizeof(wchar_t));GlobalUnlock(memory);EmptyClipboard();if(!SetClipboardData(CF_UNICODETEXT,memory))GlobalFree(memory);}else GlobalFree(memory);}CloseClipboard();
     }
     void render(){
-        if(!content||!controller||quitting)return;content.Children().Clear();status=nullptr;updateStatus=nullptr;updateAction=nullptr;searchBox=nullptr;historyList=nullptr;
+        if(!content||!controller||quitting)return;content.Children().Clear();status=nullptr;updateStatus=nullptr;updateAction=nullptr;primaryAction=nullptr;searchBox=nullptr;historyList=nullptr;
         content.Children().Append(heading(page==L"Home"?L"Dictate, then keep going.":page==L"History"?L"Your history":page==L"Settings"?L"Settings":L"About FlowGPT"));
         status=label(controller->message,14,true);content.Children().Append(status);renderStatus();
         if(page==L"Home"){
@@ -175,8 +176,7 @@ struct App : ApplicationT<App,winrt::Microsoft::UI::Xaml::Markup::IXamlMetadataP
             content.Children().Append(label(L"Press once to start. Press again to finish.",15,true));
             if(!controller->hotkeyReady)content.Children().Append(label(L"This shortcut is unavailable. Choose another in Settings."));
             bool recording=controller->session.state==flow::State::starting||controller->session.state==flow::State::recording;
-            if(controller->browser.connected||recording){auto start=button(recording?L"Finish dictation":L"Try dictation",[this]{controller->begin(true);},true);start.IsEnabled(!busy()||recording);content.Children().Append(start);}
-            else content.Children().Append(button(L"Connect ChatGPT",[this]{controller->browser.show();},true));
+            primaryAction=button(recording?L"Finish dictation":controller->browser.connected?L"Try dictation":L"Connect ChatGPT",[this]{if(controller->browser.connected||busy())controller->begin(true);else controller->browser.show();},true);primaryAction.IsEnabled(!busy()||recording);content.Children().Append(primaryAction);
             content.Children().Append(label(L"To write in another app, click its text area and use your shortcut. FlowGPT stays near the clock when you close this window.",14,true));
             if(busy())content.Children().Append(button(L"Cancel",[this]{controller->cancel();}));
             content.Children().Append(heading(L"Last dictation",17));

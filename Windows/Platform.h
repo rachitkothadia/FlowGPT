@@ -105,25 +105,30 @@ public:
                 struct Close { HANDLE h; ~Close(){CloseHandle(h);} } cleanup{event};
                 winrt::check_hresult(client->SetEventHandle(event)); ComPtr<IAudioCaptureClient> capture; winrt::check_hresult(client->GetService(IID_PPV_ARGS(&capture)));
                 winrt::check_hresult(client->Start()); HANDLE events[]{stop_,event};
-                while(WaitForMultipleObjects(2,events,FALSE,2000)!=WAIT_OBJECT_0) {
+                auto drain=[&]{
                     UINT packet{}; winrt::check_hresult(capture->GetNextPacketSize(&packet));
                     while(packet) {
                         BYTE* bytes{}; UINT frames{}; DWORD flags{}; winrt::check_hresult(capture->GetBuffer(&bytes,&frames,&flags,nullptr,nullptr));
+                        if(!frames)break;
                         if(first_==0) first_=now();
                         std::vector<float> silence;
                         const float* data=reinterpret_cast<const float*>(bytes);
                         if(flags&AUDCLNT_BUFFERFLAGS_SILENT) { silence.assign(frames,0); data=silence.data(); }
-                        bool accepted=audio.push(data,frames); capture->ReleaseBuffer(frames);
+                        if(!data){capture->ReleaseBuffer(frames);winrt::throw_hresult(E_POINTER);}
+                        bool accepted=audio.push(data,frames);winrt::check_hresult(capture->ReleaseBuffer(frames));
                         if(!accepted) { if(audio.failed()) error_=HRESULT_FROM_WIN32(ERROR_BUFFER_OVERFLOW); SetEvent(stop_); break; }
                         winrt::check_hresult(capture->GetNextPacketSize(&packet));
                     }
+                };
+                for(;;){DWORD wait=WaitForMultipleObjects(2,events,FALSE,2000);if(wait==WAIT_FAILED)winrt::throw_last_error();
+                    if(wait==WAIT_OBJECT_0){stopAndDrainCapture(audio,[&]{winrt::check_hresult(client->Stop());},drain);break;}
+                    drain();
                 }
-                client->Stop();
             } catch(const winrt::hresult_error& e) { error_=e.code(); } catch(...) { error_=E_FAIL; }
             audio.freeze(); running_=false; if(SUCCEEDED(init)) CoUninitialize();
         });
     }
-    void stop() { audio.freeze(); SetEvent(stop_); if(thread_.joinable()) thread_.join(); running_=false; }
+    void stop() { SetEvent(stop_); if(thread_.joinable()) thread_.join();audio.freeze();running_=false; }
 };
 inline bool startupEnabled() { HKEY key{};if(RegOpenKeyExW(HKEY_CURRENT_USER,L"Software\\Microsoft\\Windows\\CurrentVersion\\Run",0,KEY_READ,&key)!=ERROR_SUCCESS)return false;
     wchar_t value[32768]{};DWORD bytes=sizeof(value),type{};LONG result=RegQueryValueExW(key,L"FlowGPT",nullptr,&type,reinterpret_cast<BYTE*>(value),&bytes);RegCloseKey(key);
