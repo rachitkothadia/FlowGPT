@@ -14,3 +14,11 @@ public struct PermissionReading: Equatable, Sendable {
         needsRestart = (!accessibility && helperAccessibility) || (!inputMonitoring && helperInput)
     }
 }
+
+public enum BrowserMicrophoneConsent {
+    /// An idle page must not create another browser consent prompt on relaunch.
+    /// The native recording action already obtains OS consent before ownership.
+    public static func mayDelegate(recordingOwned: Bool, osAuthorized: Bool) -> Bool {
+        recordingOwned && osAuthorized
+    }
+}

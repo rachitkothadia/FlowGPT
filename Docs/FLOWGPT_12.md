@@ -17,7 +17,7 @@ No formatter can reconstruct speech omitted or misrecognized by the upstream tra
 
 ## Permission handling
 
-Mac indicators now read the running app's actual permission APIs. A helper denial cannot overwrite a grant held by the app. A helper grant is not presented as permission to record; it can only suggest reopening when macOS still has cached keyboard denial. An already authorized microphone does not trigger another permission request. Probes have a two-second timeout. No TCC resets or settings database writes are performed.
+Mac indicators now read the running app's actual permission APIs. A helper denial cannot overwrite a grant held by the app. A helper grant is not presented as permission to record; it can only suggest reopening when macOS still has cached keyboard denial. An already authorized microphone does not trigger another permission request. Idle ChatGPT page requests are denied rather than showing another browser microphone prompt on relaunch; explicit owned dictation with OS consent is granted. Probes have a two-second timeout. No TCC resets or settings database writes are performed.
 
 Three fresh LaunchServices probes of the unchanged installed 1.1.1 build returned all three grants as true. This supports retained system grants, but does not reproduce the user's reported loss. A misleading helper snapshot was found in the indicator code and corrected.
 

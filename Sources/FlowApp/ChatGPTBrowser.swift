@@ -361,8 +361,8 @@ private final class ConnectionWindow: NSWindow {
     func webView(_ webView: WKWebView, requestMediaCapturePermissionFor origin: WKSecurityOrigin, initiatedByFrame frame: WKFrameInfo, type: WKMediaCaptureType, decisionHandler: @escaping @MainActor @Sendable (WKPermissionDecision) -> Void) {
         guard origin.protocol == "https", origin.host == "chatgpt.com", frame.isMainFrame, type == .microphone else { decisionHandler(.deny); return }
         // The OS grant remains mandatory. Only an explicit Flow recording can
-        // delegate that microphone to ChatGPT; other page requests still prompt.
-        decisionHandler(owned && AVCaptureDevice.authorizationStatus(for: .audio) == .authorized ? .grant : .prompt)
+        // delegate that microphone to ChatGPT. Idle pages cannot re-prompt on launch.
+        decisionHandler(BrowserMicrophoneConsent.mayDelegate(recordingOwned: owned, osAuthorized: AVCaptureDevice.authorizationStatus(for: .audio) == .authorized) ? .grant : .deny)
     }
     func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
         if navigationAction.targetFrame == nil { webView.load(navigationAction.request) }

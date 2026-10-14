@@ -11,7 +11,7 @@ Closing the window keeps FlowGpt in the menu bar. Choose **Quit FlowGpt** from i
 
 ## Formatting
 
-FlowGpt uses instant native presentation, with no additional AI request. It preserves returned words, word order, repeated speech, self-corrections, language scripts, names, numbers, technical terms, paths, and quotations. It can put an already explicit consecutive numbered sequence starting at 1 on separate lines. It does not guess lists from conversation, guess quotations, translate, rewrite grammar, or uppercase loud speech. Ambiguous fillers remain unchanged. Quoted text, code, URLs, and paths are left entirely untouched.
+FlowGpt uses instant native presentation, with no additional AI request. It preserves returned words, word order, repeated speech, self-corrections, language scripts, names, numbers, technical terms, paths, and quotations. It formats clearly introduced enumerations as bullets, spoken steps as numbered lines and explicit to-do lists as checkboxes. Clear hesitation sounds can be removed. It does not guess lists from conversation, guess quotations, translate, rewrite grammar, or uppercase loud speech. Ambiguous fillers remain unchanged. Quoted text, code, URLs, and paths retain their literal content, even within a formatted list.
 
 History retains both the original returned transcript and the displayed version. **Copy original** appears whenever presentation differs. This preserves the transcription provider's output; FlowGpt cannot guarantee that provider recognized every spoken word correctly.
 
@@ -36,3 +36,6 @@ Checksums detect corruption or a mismatched release download. They do not replac
 Automated tests cover preservation, numbered-list limits, rich-editor capability gates, focus/security policies, completion timing, compatible release selection, and checksum rejection. Isolated preview/window fixtures do not sign in, capture speech, alter installed FlowGpt, or change privacy permissions.
 
 A disposable native Word document received and confirmed the complete English/Hindi/Marathi test payload through the production insertion adapter, and the original clipboard was restored. Native PowerPoint exposes the same focus proxy and range-mutation marker for both an active text caret and a selected shape. This build refuses that ambiguous target rather than creating a new text box unexpectedly. Universal PowerPoint insertion remains unresolved on this Mac. Actual microphone/ChatGPT transcription, signed release update installation, and login startup still need authorized user-machine checks.
+
+
+For 1.2 permission and formatting details, see [the release notes](FLOWGPT_12.md). Indicators now use the running app’s actual grants. Idle ChatGPT pages do not show another microphone prompt. A new ad hoc preview build may still need renewed macOS grants after installation; a stable Developer ID certificate is needed across upgrades.

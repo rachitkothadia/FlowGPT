@@ -9,12 +9,12 @@ Native dictation for macOS and Windows that brings ChatGPT's Dictate recorder to
 [![macOS](https://img.shields.io/badge/macOS-14%2B-111111?logo=apple&logoColor=white)](Docs/FLOWGPT_10.md)
 [![Windows](https://img.shields.io/badge/Windows-11_x64_preview-0078D4)](Docs/WINDOWS_SETUP.md)
 [![Swift](https://img.shields.io/badge/Swift-6.2%2B-F05138?logo=swift&logoColor=white)](Package.swift)
-[![Version](https://img.shields.io/badge/version-1.1.1-548B78)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.2.0-548B78)](CHANGELOG.md)
 [![Build & test](https://github.com/rachitkothadia/FlowGPT/actions/workflows/ci.yml/badge.svg)](https://github.com/rachitkothadia/FlowGPT/actions/workflows/ci.yml)
 [![Windows build](https://github.com/rachitkothadia/FlowGPT/actions/workflows/windows.yml/badge.svg)](https://github.com/rachitkothadia/FlowGPT/actions/workflows/windows.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-548B78)](LICENSE)
 
-[Download for Mac](https://github.com/rachitkothadia/FlowGPT/releases/download/v1.1.1/FlowGpt-1.1.1-arm64.dmg) · [Download for Windows](https://github.com/rachitkothadia/FlowGPT/releases/download/windows-v1.1.1/FlowGPT-1.1.1-Windows-x64-Setup.exe) · [Installation](#installation) · [Features](#features)
+[Download for Mac](https://github.com/rachitkothadia/FlowGPT/releases/download/v1.2.0/FlowGpt-1.2.0-arm64.dmg) · [Download for Windows](https://github.com/rachitkothadia/FlowGPT/releases/download/windows-v1.2.0/FlowGPT-1.2.0-Windows-x64-Setup.exe) · [Installation](#installation) · [Features](#features)
 
 <img src="Docs/assets/overview.png" alt="FlowGPT dark overview showing the Fn + Space shortcut and example history" width="900" />
 
@@ -30,7 +30,7 @@ Choose your computer below. You need internet access and your own ChatGPT accoun
 
 **Works on Windows 11, on an Intel or AMD 64-bit PC.**
 
-1. **[Download FlowGPT for Windows (.exe)](https://github.com/rachitkothadia/FlowGPT/releases/download/windows-v1.1.1/FlowGPT-1.1.1-Windows-x64-Setup.exe).**
+1. **[Download FlowGPT for Windows (.exe)](https://github.com/rachitkothadia/FlowGPT/releases/download/windows-v1.2.0/FlowGPT-1.2.0-Windows-x64-Setup.exe).**
 2. **Install it.** Double-click the downloaded file, follow the installer, then open **FlowGPT** from the Start menu.
 3. **Connect ChatGPT.** Click **Connect ChatGPT**, sign in to your account, then close the connection window.
 4. **Allow your microphone if recording is blocked.** Open **Windows Settings → Privacy & security → Microphone**. Turn on **Microphone access** and **Let desktop apps access your microphone**.
@@ -42,7 +42,7 @@ Choose your computer below. You need internet access and your own ChatGPT accoun
 
 **Works on macOS 14 or newer, on an Apple Silicon Mac (M1 or later).**
 
-1. **[Download FlowGPT for Mac (.dmg)](https://github.com/rachitkothadia/FlowGPT/releases/download/v1.1.1/FlowGpt-1.1.1-arm64.dmg).** Double-click the downloaded file.
+1. **[Download FlowGPT for Mac (.dmg)](https://github.com/rachitkothadia/FlowGPT/releases/download/v1.2.0/FlowGpt-1.2.0-arm64.dmg).** Double-click the downloaded file.
 2. **Install it.** Drag **FlowGpt.app** into **Applications**, then open it from Applications.
 3. **Connect ChatGPT.** Click **Connect ChatGPT**, sign in to your account, then close the connection window.
 4. **Allow the three permissions.** Enable **Microphone**, **Accessibility**, and **Input Monitoring** for FlowGpt when prompted. You can also find them in **System Settings → Privacy & Security**.
@@ -98,20 +98,20 @@ The installer checks the required Microsoft WebView2 Runtime automatically. Keep
 
 Each release includes a **SHA256SUMS.txt** file alongside its installer:
 
-- [Mac installer and checksum](https://github.com/rachitkothadia/FlowGPT/releases/tag/v1.1.1)
-- [Windows installer and checksum](https://github.com/rachitkothadia/FlowGPT/releases/tag/windows-v1.1.1)
+- [Mac installer and checksum](https://github.com/rachitkothadia/FlowGPT/releases/tag/v1.2.0)
+- [Windows installer and checksum](https://github.com/rachitkothadia/FlowGPT/releases/tag/windows-v1.2.0)
 
 The shared checksum file contains both installers. On Mac, download it alongside the DMG, run the command below, and compare the DMG hash with its matching entry:
 
 ```sh
 cd ~/Downloads
-shasum -a 256 FlowGpt-1.1.1-arm64.dmg
+shasum -a 256 FlowGpt-1.2.0-arm64.dmg
 ```
 
 On Windows, open PowerShell in Downloads and compare this result with the Windows checksum file:
 
 ```powershell
-Get-FileHash .\FlowGPT-1.1.1-Windows-x64-Setup.exe -Algorithm SHA256
+Get-FileHash .\FlowGPT-1.2.0-Windows-x64-Setup.exe -Algorithm SHA256
 ```
 
 </details>
@@ -126,7 +126,7 @@ Speak into the field you are working in. FlowGPT records your voice, gets the tr
 | Saved connection | Keeps your own ChatGPT sign-in locally between launches. Expired sessions need sign-in again. |
 | Automatic insertion | Attempts to insert into your original field and restores the clipboard where supported. |
 | Local history | Saves searchable transcripts and the original returned text on your computer. |
-| Conservative formatting | Adds line breaks to explicit consecutive numbered items; preserves words, repetitions, scripts, names, and code. |
+| Conservative formatting | Formats clearly introduced bullets, spoken steps and explicit task checkboxes; preserves repetitions, scripts, names and code. |
 | Updates | Checks GitHub at launch and every six hours, with a subtle notice. Windows opens the verified installer; Mac opens the verified DMG for manual replacement. |
 | Background operation | Keeps running in the menu bar or tray when you close the main window. |
 | Compact recording strip | Shows microphone levels, then a loader while transcription finishes. |
@@ -150,7 +150,7 @@ Swift's capture-only `AVCaptureSession` on Mac and C++ WASAPI capture on Windows
 
 The result is saved locally before the matching draft is cleared or insertion is attempted. **FlowGPT does not send a ChatGPT message.** It does not scrape existing conversations or extract login tokens. No separate browser, Selenium process, MCP server, Groq request, or local language-prediction layer participates in the current dictation path.
 
-The original transcript is retained in History. Instant native formatting only adds line breaks around already explicit consecutive numbered items. It preserves words, order, repetitions, self-corrections, languages and scripts; quoted text, code, URLs and paths stay untouched. There is no extra AI request, translation, guessed correction, or invented list. Speech recognition accuracy still depends on ChatGPT's transcription.
+The original transcript is retained in History. Instant native formatting recognizes clearly introduced lists, spoken steps and explicit to-do lists. Clear hesitation sounds may be removed; ordinary conversation stays prose. It preserves words, order, repetitions, self-corrections, languages and scripts; quoted text, code, URLs and paths stay untouched. There is no extra AI request, translation, guessed correction, or invented content. Speech recognition accuracy still depends on ChatGPT's transcription.
 
 In version 1.1, text-field checks run separately from the Windows UI, clipboard restoration no longer keeps the loader visible, and the Windows release's reported stop crash has a [matching-binary diagnosis and regression test](Docs/WINDOWS_100_CRASH.md). Mac Word insertion was independently verified with complete Hindi/English/Marathi text. Ambiguous PowerPoint canvas focus remains unsupported on the tested Mac; Windows Office still needs a real-device check. See [1.1 validation](Docs/FLOWGPT_11_VALIDATION.md).
 
@@ -210,7 +210,7 @@ Scripts/test.sh
 Scripts/build-flowgpt.sh
 ```
 
-The local builder creates **FlowGpt-1.1.1-arm64.dmg in the project root**. Build/test logs and the staged app stay under `release/flowgpt/`. This local build is ad hoc signed by default and is not suitable for frictionless public distribution.
+The local builder creates **FlowGpt-1.2.0-arm64.dmg in the project root**. Build/test logs and the staged app stay under `release/flowgpt/`. This local build is ad hoc signed by default and is not suitable for frictionless public distribution.
 
 For an isolated UI preview with sample data and no microphone or sign-in:
 

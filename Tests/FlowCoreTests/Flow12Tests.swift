@@ -23,3 +23,11 @@ extension Flow12Tests {
         #expect(!PermissionReading(microphone: false, accessibility: false, inputMonitoring: false).needsRestart)
     }
 }
+extension Flow12Tests {
+    @Test func idleBrowserDoesNotReRequestPermissionOrCapture() {
+        #expect(!BrowserMicrophoneConsent.mayDelegate(recordingOwned: false, osAuthorized: true))
+        #expect(!BrowserMicrophoneConsent.mayDelegate(recordingOwned: true, osAuthorized: false))
+        #expect(!BrowserMicrophoneConsent.mayDelegate(recordingOwned: false, osAuthorized: false))
+        #expect(BrowserMicrophoneConsent.mayDelegate(recordingOwned: true, osAuthorized: true))
+    }
+}
