@@ -2,7 +2,7 @@ name: Windows app and installer
 on:
   push:
     branches: [main, 'codex/windows-*']
-    paths: ['Windows/**', 'Shared/**', '.github/workflows/windows.yml']
+    paths: ['Windows/**', 'Shared/**', 'Scripts/currency-data.py', '.github/workflows/windows.yml']
   workflow_dispatch:
 permissions:
   contents: read
