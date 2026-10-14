@@ -233,9 +233,20 @@ inline std::string enumerations(const std::string& s){
         from=next;
     }return out;
 }
+inline std::string circleExistingBullets(const std::string& text){
+    auto mask=protectedBytes(text);std::vector<size_t> markers;
+    for(size_t start=0;start<text.size();){size_t end=text.find('\n',start);if(end==std::string::npos)end=text.size();size_t at=start;while(at<end&&(text[at]==' '||text[at]=='\t'))++at;
+        if(at+2<end&&!mask[at]&&(text[at]=='-'||text[at]=='*')&&text[at+1]==' '){
+            auto item=trim(text.substr(at+2,end-at-2));bool pureNumber=!moneyDigits(item).empty();
+            if(!pureNumber)markers.push_back(at);
+        }
+        start=end+1;
+    }
+    if(markers.size()<2)return text;auto out=text;for(auto at=markers.rbegin();at!=markers.rend();++at)out.replace(*at,1,"•");return out;
+}
 inline std::string format(const std::string& source) {
     if(source.size()>100000)return source;
-    auto text=normalizeMoney(capitalize(fillers(source)));
+    auto text=circleExistingBullets(normalizeMoney(capitalize(fillers(source))));
     if(text.find("\n• ")!=std::string::npos||text.find("\n1. ")!=std::string::npos)return text;
     auto numeric=separateNumeric(text);if(numeric!=text)return numeric;
     auto ordered=spokenSequence(text);if(ordered!=text)return ordered;

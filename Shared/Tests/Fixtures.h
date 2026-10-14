@@ -241,5 +241,20 @@ And yeah, हाँ,
 {R"fixture(commodity quantities are not guessed currencies)fixture",R"fixture(I need 100 gold rings.)fixture",R"fixture(I need 100 gold rings.)fixture"},
 {R"fixture(bare spoken sequence needs no introduction)fixture",R"fixture(first open the file second edit the title third save it.)fixture",R"fixture(1. first open the file
 2. second edit the title
-3. third save it.)fixture"}
+3. third save it.)fixture"},
+{R"fixture(provider hyphen bullets become circles)fixture",R"fixture(- Milk
+- Rice
+- Oil)fixture",R"fixture(• Milk
+• Rice
+• Oil)fixture"},
+{R"fixture(literal hyphen code remains untouched)fixture",R"fixture(```
+- option
+- flag
+```)fixture",R"fixture(```
+- option
+- flag
+```)fixture"},
+{R"fixture(negative values are not bullet markers)fixture",R"fixture(- 5
+- 10)fixture",R"fixture(- 5
+- 10)fixture"}
 }; }
