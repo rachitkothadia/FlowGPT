@@ -73,7 +73,7 @@ import ServiceManagement
         let inside = localPreview ?? (NSWorkspace.shared.frontmostApplication?.bundleIdentifier == Bundle.main.bundleIdentifier)
         session.toggle(localPreview: inside)
     }
-    func stopPolling() { statePolling?.cancel(); statePolling = nil; browser.shutdown() }
+    func stopPolling() { statePolling?.cancel(); statePolling = nil; updater.stopAutomaticChecks(); browser.shutdown() }
     func setLaunchAtLogin(_ enabled: Bool) {
         guard !isDesignPreview else { launchAtLogin = enabled; return }
         do {
@@ -108,11 +108,27 @@ private struct BridgeHUD: View {
     }
 }
 
+private struct UpdateNotice: View {
+    let version: String
+    let update: () -> Void
+    let later: () -> Void
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("FlowGpt \(version) is available", systemImage: "arrow.down.circle")
+                .font(.headline)
+            Text("A new update is ready to download.").font(.subheadline).foregroundStyle(.secondary)
+            HStack { Button("Later", action: later); Spacer(); Button("Download update", action: update).buttonStyle(.borderedProminent) }
+        }.padding(18).frame(width: 300)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
+    }
+}
+
 @MainActor final class BrowserBridgeDelegate: NSObject, NSApplicationDelegate {
     private var model: BrowserBridgeModel!
     private var settings: NSWindow!
     private var panel: NSPanel!
     private var status: NSStatusItem!
+    private var updatePanel: NSPanel?
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         let checkingWindows = CommandLine.arguments.contains("--bridge-window-check")
@@ -162,6 +178,25 @@ private struct BridgeHUD: View {
             && NSAppleEventManager.shared().currentAppleEvent?.paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue == OSType(keyAELaunchedAsLogInItem)
         if !CommandLine.arguments.contains("--background") && !loginLaunch { showSettings() }
         if checkingWindows { checkWindowLifecycle() }
+        if !checkingWindows {
+            model.updater.onAvailable = { [weak self] update in self?.showUpdateNotice(version: update.version) }
+            model.updater.startAutomaticChecks { [weak self] in self?.model.session.state.busy ?? true }
+        }
+    }
+    private func showUpdateNotice(version: String) {
+        guard !model.session.state.busy else { return }
+        let notice = BridgeHUDPanel(contentRect: NSRect(x: 0, y: 0, width: 336, height: 140),
+            styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+        notice.isOpaque = false; notice.backgroundColor = .clear; notice.level = .floating
+        notice.hidesOnDeactivate = false; notice.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        notice.contentView = NSHostingView(rootView: UpdateNotice(version: version, update: { [weak self] in
+            guard let self, !model.session.state.busy else { return }
+            updatePanel?.orderOut(nil)
+            Task { await model.updater.downloadAndOpen() }
+        }, later: { [weak self] in self?.updatePanel?.orderOut(nil) }))
+        if let frame = NSScreen.main?.visibleFrame { notice.setFrameOrigin(NSPoint(x: frame.maxX - 350, y: frame.minY + 14)) }
+        updatePanel?.orderOut(nil); updatePanel = notice
+        notice.orderFrontRegardless()
     }
     private func checkWindowLifecycle() {
         settings.close()

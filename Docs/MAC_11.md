@@ -17,6 +17,8 @@ History retains both the original returned transcript and the displayed version.
 
 ## Updates
 
+Starting with 1.1.1, FlowGpt checks GitHub shortly after launch and every six hours while it runs. A small notice appears without taking keyboard focus, even when the main window is closed. Choose **Download update** or **Later**. Each available version is announced once per launch, after any active dictation finishes. Fully quitting the menu-bar app stops checks; they resume on the next launch.
+
 Choose **About → Check for updates**. FlowGpt checks this repository's published releases, including previews, for a newer DMG compatible with your Mac. **Download & open installer** verifies the published SHA-256 checksum before opening the installer. Quit FlowGpt, then replace the application in Applications. Connection and history stay in the existing application-support folder. Permission refresh may still be required when the application's signing identity changes. This preview does not silently replace the app or bypass Gatekeeper; automatic signed installation is not enabled without the developer's real signing/notarization credentials.
 
 Checksums detect corruption or a mismatched release download. They do not replace publisher signing. Developer ID signing and Apple notarization require the developer's real Apple credentials. The distribution script refuses to claim a signed/notarized release without them; local preview builds remain ad hoc signed and Gatekeeper may warn.

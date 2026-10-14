@@ -32,6 +32,8 @@ Automatic paste revalidates the focused destination and preserves the clipboard 
 
 ## Local data and updates
 
+Starting with 1.1.1, FlowGPT checks GitHub shortly after launch and every six hours while running. It queues a silent tray notification for a newer compatible release, including with the main window closed. Click it to open About and download/install the update. Each version is announced once per launch, after dictation finishes. Windows notification settings or Do Not Disturb can suppress the notice. A fully quit app resumes checking on its next launch.
+
 Data is under `%LOCALAPPDATA%\FlowGPT\`:
 
 - `history.json`: the latest 100 transcripts, with atomic saving.

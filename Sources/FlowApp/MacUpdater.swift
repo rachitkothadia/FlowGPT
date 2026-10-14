@@ -7,6 +7,29 @@ import Observation
     private(set) var busy = false
     private(set) var message = "Check for a newer version of FlowGpt."
     private(set) var available: MacReleaseUpdate?
+    @ObservationIgnored var onAvailable: ((MacReleaseUpdate) -> Void)?
+    @ObservationIgnored private var automaticTask: Task<Void, Never>?
+    func startAutomaticChecks(isDictating: @escaping @MainActor () -> Bool) {
+        stopAutomaticChecks()
+        automaticTask = Task { [weak self] in
+            var nextCheck = Date().addingTimeInterval(10)
+            var announced = Set<String>()
+            while !Task.isCancelled {
+                do { try await Task.sleep(for: .seconds(5)) } catch { return }
+                guard let self else { return }
+                guard !isDictating(), !busy else { continue }
+                if Date() >= nextCheck {
+                    nextCheck = Date().addingTimeInterval(6 * 60 * 60)
+                    await check()
+                }
+                guard !Task.isCancelled, !isDictating(), let update = available,
+                      !announced.contains(update.version), let onAvailable else { continue }
+                announced.insert(update.version)
+                onAvailable(update)
+            }
+        }
+    }
+    func stopAutomaticChecks() { automaticTask?.cancel(); automaticTask = nil }
     func check() async {
         guard !busy else { return }
         busy = true; available = nil; message = "Checking for updates…"
@@ -24,7 +47,7 @@ import Observation
             #else
             let architecture = "x86_64"
             #endif
-            available = ReleaseUpdatePolicy.latestMac(releases, current: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.1.0", architecture: architecture)
+            available = ReleaseUpdatePolicy.latestMac(releases, current: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.1.1", architecture: architecture)
             message = available.map { "Version \($0.version) is available\($0.preview ? " (preview)" : "")." } ?? "You’re using the latest compatible version."
         } catch { message = "Couldn’t check for updates. Check your connection and try again." }
     }

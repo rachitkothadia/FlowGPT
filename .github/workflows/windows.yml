@@ -132,7 +132,7 @@ jobs:
           if (-not $p.WaitForExit(90000)) { $p.Kill(); throw 'Installer timeout' }
           if ($p.ExitCode -ne 0 -or -not (Test-Path "$destination/FlowGPT.exe")) { throw 'Installation failed' }
           $checks.installSucceeded = $true
-          if ((Get-Item "$destination/FlowGPT.exe").VersionInfo.FileVersion -notlike '1.1.0*' -or -not (Test-Path $marker)) { throw 'Actual 1.0 to 1.1 upgrade did not preserve data' }
+          if ((Get-Item "$destination/FlowGPT.exe").VersionInfo.FileVersion -notlike '1.1.1*' -or -not (Test-Path $marker)) { throw 'Actual 1.0 to 1.1 upgrade did not preserve data' }
           $checks.previousVersionUpgradePreservesData = $true
           $original = (Get-FileHash Windows/out/x64/Release/FlowGPT.exe).Hash
           if ((Get-FileHash "$destination/FlowGPT.exe").Hash -ne $original) { throw 'Installed executable differs' }

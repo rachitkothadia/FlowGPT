@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.1 preview
+
+- Check GitHub releases automatically shortly after launch and every six hours while FlowGPT runs.
+- Show a nonactivating Mac update notice or a silent Windows tray notification, including with the main window closed.
+- Announce each newer compatible version once per launch; defer checks and notices until dictation finishes.
+- Mac notice downloads and opens the verified DMG. Windows notification opens About with verified download/install controls. A fully quit app checks again on its next launch.
+
 ## 1.1.0 preview
 
 - Shorter native Home, History, Settings and About interfaces, with update checking and checksum-verified downloads.
