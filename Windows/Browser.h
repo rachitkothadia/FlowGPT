@@ -26,9 +26,28 @@ class Browser {
         if(self && message==WM_SIZE){self->resize();return 0;}
         return DefWindowProcW(hwnd,message,w,l);
     }
+    void loadPage() {
+        if(fixture_){ComPtr<ICoreWebView2_3> v3;if(SUCCEEDED(web_.As(&v3))){auto folder=std::filesystem::path(exePath()).parent_path()/L"Bridge";v3->SetVirtualHostNameToFolderMapping(L"chatgpt.com",folder.c_str(),COREWEBVIEW2_HOST_RESOURCE_ACCESS_KIND_DENY_CORS);web_->Navigate(L"https://chatgpt.com/fixture.html");}}
+        else web_->Navigate(L"https://chatgpt.com/");
+    }
+    void loadWithoutStaleMicrophoneDecision() {
+        // Older versions accidentally saved temporary inactive denials. Only
+        // reset this website decision; Windows' microphone consent is untouched.
+        ComPtr<ICoreWebView2_13> v13;ComPtr<ICoreWebView2Profile> profile;ComPtr<ICoreWebView2Profile4> permissions;
+        if(SUCCEEDED(web_.As(&v13))&&SUCCEEDED(v13->get_Profile(&profile))&&profile&&SUCCEEDED(profile.As(&permissions))){
+            auto guard=lifetime_;unsigned generation=guard->generation;
+            HRESULT hr=permissions->SetPermissionState(COREWEBVIEW2_PERMISSION_KIND_MICROPHONE,L"https://chatgpt.com",COREWEBVIEW2_PERMISSION_STATE_DEFAULT,
+                Microsoft::WRL::Callback<ICoreWebView2SetPermissionStateCompletedHandler>([this,guard,generation](HRESULT result)->HRESULT {
+                    if(!guard->alive||generation!=guard->generation)return S_OK;
+                    microphoneDecisionReset=SUCCEEDED(result);loadPage();return S_OK;
+                }).Get());
+            if(SUCCEEDED(hr))return;
+        }
+        loadPage();
+    }
     void resize(){if(controller_){RECT r{};GetClientRect(window_,&r);controller_->put_Bounds(r);}}
 public:
-    bool connected=false, needsLogin=false, hasDraft=false, active=false;
+    bool connected=false, needsLogin=false, hasDraft=false, active=false, microphoneDecisionReset=false;
     std::wstring status=L"Connecting to ChatGPT…";
     double loadedAt=now();
     std::function<void()> interrupted;
@@ -48,7 +67,7 @@ public:
     void reload(){if(active||hasDraft||needsLogin)return;close();init();}
     void init(){
         auto guard=lifetime_;unsigned generation=++guard->generation;
-        initialized_=false;connected=false;loadedAt=now();
+        initialized_=false;connected=false;microphoneDecisionReset=false;loadedAt=now();
         if(!window_){WNDCLASSW c{};c.lpfnWndProc=procedure;c.hInstance=GetModuleHandleW(nullptr);c.lpszClassName=L"FlowGPTBrowserHost";c.hCursor=LoadCursorW(nullptr,IDC_ARROW);RegisterClassW(&c);
             window_=CreateWindowExW(WS_EX_TOOLWINDOW|WS_EX_LAYERED,c.lpszClassName,L"FlowGPT · ChatGPT connection",WS_OVERLAPPEDWINDOW,CW_USEDEFAULT,CW_USEDEFAULT,960,740,nullptr,nullptr,c.hInstance,nullptr);SetWindowLongPtrW(window_,GWLP_USERDATA,reinterpret_cast<LONG_PTR>(this));hide();}
         std::filesystem::create_directories(profile_);
@@ -72,14 +91,17 @@ public:
                 web_->add_NavigationStarting(Microsoft::WRL::Callback<ICoreWebView2NavigationStartingEventHandler>([this,guard,generation](ICoreWebView2*,ICoreWebView2NavigationStartingEventArgs* args)->HRESULT{if(!guard->alive||generation!=guard->generation)return S_OK;LPWSTR uri{};args->get_Uri(&uri);needsLogin=uri&&!trusted(uri);CoTaskMemFree(uri);initialized_=false;connected=false;loadedAt=now();failPending(L"Browser navigated");return S_OK;}).Get(),&token);
                 web_->add_NavigationCompleted(Microsoft::WRL::Callback<ICoreWebView2NavigationCompletedEventHandler>([this,guard,generation](ICoreWebView2*,ICoreWebView2NavigationCompletedEventArgs* args)->HRESULT{if(!guard->alive||generation!=guard->generation)return S_OK;BOOL success{};args->get_IsSuccess(&success);initialized_=success;status=success?L"Checking ChatGPT connection…":L"Connection failed; retrying when idle";return S_OK;}).Get(),&token);
                 web_->add_ProcessFailed(Microsoft::WRL::Callback<ICoreWebView2ProcessFailedEventHandler>([this,guard,generation](ICoreWebView2*,ICoreWebView2ProcessFailedEventArgs*)->HRESULT{if(!guard->alive||generation!=guard->generation)return S_OK;initialized_=false;connected=false;status=L"Browser interrupted; reconnect when idle";failPending(status);if(interrupted)interrupted();return S_OK;}).Get(),&token);
-                web_->add_PermissionRequested(Microsoft::WRL::Callback<ICoreWebView2PermissionRequestedEventHandler>([this,guard,generation](ICoreWebView2*,ICoreWebView2PermissionRequestedEventArgs* args)->HRESULT{if(!guard->alive||generation!=guard->generation)return S_OK;COREWEBVIEW2_PERMISSION_KIND kind{};args->get_PermissionKind(&kind);LPWSTR uri{};args->get_Uri(&uri);bool origin=uri&&trusted(uri);CoTaskMemFree(uri);if(kind==COREWEBVIEW2_PERMISSION_KIND_MICROPHONE)args->put_State(active&&origin?COREWEBVIEW2_PERMISSION_STATE_ALLOW:COREWEBVIEW2_PERMISSION_STATE_DENY);return S_OK;}).Get(),&token);
+                web_->add_PermissionRequested(Microsoft::WRL::Callback<ICoreWebView2PermissionRequestedEventHandler>([this,guard,generation](ICoreWebView2*,ICoreWebView2PermissionRequestedEventArgs* args)->HRESULT{if(!guard->alive||generation!=guard->generation)return S_OK;COREWEBVIEW2_PERMISSION_KIND kind{};args->get_PermissionKind(&kind);LPWSTR uri{};args->get_Uri(&uri);bool origin=uri&&trusted(uri);CoTaskMemFree(uri);if(kind==COREWEBVIEW2_PERMISSION_KIND_MICROPHONE){
+                    ComPtr<ICoreWebView2PermissionRequestedEventArgs3> persistence;
+                    if(SUCCEEDED(args->QueryInterface(IID_PPV_ARGS(&persistence))))persistence->put_SavesInProfile(FALSE);
+                    args->put_State(active&&origin?COREWEBVIEW2_PERMISSION_STATE_ALLOW:COREWEBVIEW2_PERMISSION_STATE_DENY);
+                }return S_OK;}).Get(),&token);
                 web_->add_NewWindowRequested(Microsoft::WRL::Callback<ICoreWebView2NewWindowRequestedEventHandler>([this,guard,generation](ICoreWebView2*,ICoreWebView2NewWindowRequestedEventArgs* args)->HRESULT{if(!guard->alive||generation!=guard->generation)return S_OK;LPWSTR uri{};args->get_Uri(&uri);if(uri){web_->Navigate(uri);CoTaskMemFree(uri);}args->put_Handled(TRUE);return S_OK;}).Get(),&token);
                 try{auto base=std::filesystem::path(exePath()).parent_path()/L"Bridge";auto script=read(base/L"audio.js")+L"\n"+read(base/L"driver.js");
                     web_->AddScriptToExecuteOnDocumentCreated(script.c_str(),Microsoft::WRL::Callback<ICoreWebView2AddScriptToExecuteOnDocumentCreatedCompletedHandler>([this,guard,generation](HRESULT injected,LPCWSTR)->HRESULT{
                         if(!guard->alive||generation!=guard->generation)return S_OK;
                         if(FAILED(injected)){status=L"Audio bridge could not load";return S_OK;}
-                        if(fixture_){ComPtr<ICoreWebView2_3> v3;if(SUCCEEDED(web_.As(&v3))){auto folder=std::filesystem::path(exePath()).parent_path()/L"Bridge";v3->SetVirtualHostNameToFolderMapping(L"chatgpt.com",folder.c_str(),COREWEBVIEW2_HOST_RESOURCE_ACCESS_KIND_DENY_CORS);web_->Navigate(L"https://chatgpt.com/fixture.html");}}
-                        else web_->Navigate(L"https://chatgpt.com/");return S_OK;
+                        loadWithoutStaleMicrophoneDecision();return S_OK;
                     }).Get());
                 }catch(...){status=L"Browser bridge files missing. Reinstall FlowGPT.";}if(shown_)show();else hide();return S_OK;
             }).Get());return S_OK;

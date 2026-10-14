@@ -18,6 +18,7 @@ private struct PermissionSnapshot: Sendable {
     @ObservationIgnored var onChange: (() -> Void)?
     @ObservationIgnored private var refreshing = false
     func refresh() {
+        applyCurrent()
         guard !refreshing, let executable = Bundle.main.executableURL else { return }
         refreshing = true
         Task {
@@ -28,25 +29,29 @@ private struct PermissionSnapshot: Sendable {
                 process.standardOutput = output; process.standardError = FileHandle.nullDevice
                 do {
                     try process.run()
-                    let data = output.fileHandleForReading.readDataToEndOfFile(); process.waitUntilExit()
+                    let deadline = Date().addingTimeInterval(2)
+                    while process.isRunning && Date() < deadline { try await Task.sleep(for: .milliseconds(25)) }
+                    guard !process.isRunning else { process.terminate(); return nil }
+                    let data = output.fileHandleForReading.readDataToEndOfFile()
                     guard process.terminationStatus == 0, let flags = try JSONSerialization.jsonObject(with: data) as? [String: Bool],
                           let mic = flags["microphone"], let ax = flags["accessibility"], let input = flags["inputMonitoring"] else { return nil }
                     return PermissionSnapshot(microphone: mic, accessibility: ax, input: input)
                 } catch { return nil }
             }.value
             refreshing = false
-            guard let snapshot else { return }
-            let currentAX = AXIsProcessTrusted()
-            let restartRequired = snapshot.accessibility && !currentAX
-            // Use every fresh result, including Accessibility. The existing process may cache a denial.
-            microphone = snapshot.microphone
-            accessibility = snapshot.accessibility; inputMonitoring = snapshot.input
-            needsRestart = restartRequired
-            // Also retry a stopped service after sleep or an explicit recheck, even if grants did not change.
-            onChange?()
+            applyCurrent(helper: snapshot)
         }
     }
+    private func applyCurrent(helper: PermissionSnapshot? = nil) {
+        let reading = PermissionReading(microphone: AVCaptureDevice.authorizationStatus(for: .audio) == .authorized,
+            accessibility: AXIsProcessTrusted(), inputMonitoring: CGPreflightListenEventAccess(),
+            helperAccessibility: helper?.accessibility ?? false, helperInput: helper?.input ?? false)
+        microphone = reading.microphone; accessibility = reading.accessibility
+        inputMonitoring = reading.inputMonitoring; needsRestart = reading.needsRestart
+        onChange?()
+    }
     func requestMicrophone() async -> Bool {
+        if AVCaptureDevice.authorizationStatus(for: .audio) == .authorized { applyCurrent(); return true }
         let granted = await AVCaptureDevice.requestAccess(for: .audio)
         refresh(); return granted
     }

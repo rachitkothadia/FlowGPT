@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.2.0
+
+- Shared native Mac/Windows formatting for introduced bullet lists, spoken numbered steps and explicit task checkboxes, with original transcripts retained.
+- Protect literals within mixed prose instead of disabling formatting for the whole transcript.
+- Fix Mac permission indicators overwriting effective grants with helper-process readings; avoid repeated microphone requests when already allowed.
+- Prevent Windows WebView2 from persisting temporary microphone denials and recover old website decisions without clearing login or OS consent.
+- Expand shared multilingual output and preservation regression fixtures.
+
+
 ## 1.1.1 preview
 
 - Check GitHub releases automatically shortly after launch and every six hours while FlowGPT runs.

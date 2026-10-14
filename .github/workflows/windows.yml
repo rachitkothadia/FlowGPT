@@ -2,7 +2,7 @@ name: Windows app and installer
 on:
   push:
     branches: [main, 'codex/windows-*']
-    paths: ['Windows/**', '.github/workflows/windows.yml']
+    paths: ['Windows/**', 'Shared/**', '.github/workflows/windows.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -113,26 +113,39 @@ jobs:
           New-Item $dataDirectory -ItemType Directory -Force | Out-Null
           $marker = Join-Path $dataDirectory 'disposable-installer-fixture.txt'
           'Preserve this fixture during upgrade and uninstall' | Set-Content $marker
-          # Install the published baseline before checking replacement and data preservation.
-          $oldInstaller = Join-Path $env:RUNNER_TEMP 'FlowGPT-1.1.1-Windows-x64-Setup.exe'
-          $oldRelease = 'https://github.com/rachitkothadia/FlowGPT/releases/download/windows-v1.1.1'
-          Invoke-WebRequest "$oldRelease/FlowGPT-1.1.1-Windows-x64-Setup.exe" -OutFile $oldInstaller
-          $oldSumsFile = Join-Path $env:RUNNER_TEMP 'FlowGPT-1.1.1-SHA256SUMS.txt'
-          Invoke-WebRequest "$oldRelease/SHA256SUMS.txt" -OutFile $oldSumsFile
+          # Find the current Windows release so retiring older releases cannot break CI.
+          $releases = Invoke-RestMethod 'https://api.github.com/repos/rachitkothadia/FlowGPT/releases?per_page=100'
+          $baselines = @($releases | Where-Object { -not $_.draft } | ForEach-Object {
+            $release = $_
+            foreach ($asset in $release.assets) {
+              if ($asset.name -match '^FlowGPT-(\d+\.\d+\.\d+)-Windows-x64-Setup\.exe$') {
+                [pscustomobject]@{Version=[version]$Matches[1]; Asset=$asset; Release=$release}
+              }
+            }
+          } | Sort-Object Version -Descending)
+          if ($baselines.Count -eq 0) { throw 'No published Windows baseline installer' }
+          $baseline = $baselines[0]
+          $oldInstaller = Join-Path $env:RUNNER_TEMP $baseline.Asset.name
+          Invoke-WebRequest $baseline.Asset.browser_download_url -OutFile $oldInstaller
+          $checksum = @($baseline.Release.assets | Where-Object name -eq 'SHA256SUMS.txt')
+          if ($checksum.Count -ne 1) { throw 'Missing baseline checksum' }
+          $oldSumsFile = Join-Path $env:RUNNER_TEMP 'FlowGPT-baseline-SHA256SUMS.txt'
+          Invoke-WebRequest $checksum[0].browser_download_url -OutFile $oldSumsFile
           $oldSums = Get-Content $oldSumsFile -Raw -Encoding utf8
-          $checksumLines = @($oldSums -split "`n" | Where-Object { $_.Trim() -match '^[a-fA-F0-9]{64}  FlowGPT-1\.1\.1-Windows-x64-Setup\.exe$' })
+          $pattern = '^[a-fA-F0-9]{64}  ' + [regex]::Escape($baseline.Asset.name) + '$'
+          $checksumLines = @($oldSums -split "`n" | Where-Object { $_.Trim() -match $pattern })
           $oldActual = (Get-FileHash $oldInstaller -Algorithm SHA256).Hash.ToLowerInvariant()
-          if ($checksumLines.Count -ne 1) { throw "Released baseline checksum file must contain exactly one entry; got $($checksumLines.Count)" }
-          if ($oldActual -ne $checksumLines[0].Trim().Substring(0,64).ToLowerInvariant()) { throw "Released baseline installer checksum mismatch: $oldActual" }
+          if ($checksumLines.Count -ne 1) { throw 'Ambiguous baseline checksum' }
+          if ($oldActual -ne $checksumLines[0].Trim().Substring(0,64).ToLowerInvariant()) { throw 'Baseline installer checksum mismatch' }
           $p = Start-Process $oldInstaller -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /TASKS=startup /DIR=`"$destination`"" -PassThru
           if (-not $p.WaitForExit(90000)) { $p.Kill(); throw 'Previous version installation timeout' }
-          if ($p.ExitCode -ne 0 -or (Get-Item "$destination/FlowGPT.exe").VersionInfo.FileVersion -notlike '1.1.1*') { throw 'Released baseline app was not installed for upgrade fixture' }
+          if ($p.ExitCode -ne 0 -or (Get-Item "$destination/FlowGPT.exe").VersionInfo.FileVersion -notlike ($baseline.Version.ToString()+'*')) { throw 'Released baseline app was not installed for upgrade fixture' }
           $checks.previousVersionInstalled = $true
           $p = Start-Process $installer.FullName -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /TASKS=startup /DIR=`"$destination`"" -PassThru
           if (-not $p.WaitForExit(90000)) { $p.Kill(); throw 'Installer timeout' }
           if ($p.ExitCode -ne 0 -or -not (Test-Path "$destination/FlowGPT.exe")) { throw 'Installation failed' }
           $checks.installSucceeded = $true
-          if ((Get-Item "$destination/FlowGPT.exe").VersionInfo.FileVersion -notlike '1.1.1*' -or -not (Test-Path $marker)) { throw 'Published baseline replacement did not preserve data' }
+          if ((Get-Item "$destination/FlowGPT.exe").VersionInfo.FileVersion -notlike '1.2.0*' -or -not (Test-Path $marker)) { throw 'Published baseline replacement did not preserve data' }
           $checks.previousVersionUpgradePreservesData = $true
           $original = (Get-FileHash Windows/out/x64/Release/FlowGPT.exe).Hash
           if ((Get-FileHash "$destination/FlowGPT.exe").Hash -ne $original) { throw 'Installed executable differs' }

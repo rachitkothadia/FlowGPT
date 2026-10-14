@@ -22,7 +22,9 @@ jobs:
       - name: Toolchain
         run: swift --version
       - name: Test native policies
-        run: Scripts/test.sh
+        run: |
+          ruby Scripts/formatting-fixtures.rb
+          Scripts/test.sh
       - name: Build release with warnings as errors
         run: swift build -c release -Xswiftc -warnings-as-errors
       - name: Validate packaging scripts

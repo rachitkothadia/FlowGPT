@@ -5,17 +5,18 @@ import Testing
 struct Flow11Tests {
     @Test func conservativePresentationPreservesMixedSpeechAndRepetition() {
         for text in [
-            "ओके so मेरे MacBook में storage बहुत कम है. um मैं मैं delete नहीं करना चाहता.",
+            "ओके so मेरे MacBook में storage बहुत कम है. मैं मैं delete नहीं करना चाहता.",
             "अरे Brajesh, तू तू मेरे लिए काम कर. But अभी मुझे नींद आ रही है।",
             "मला one task आहे, तू try again क्लिक कर, आणि मला कळव.",
             "Then I pressed 'Try again' but it still failed. Failed. Failed!",
             "my maby is not my baby; garam masala is not hot sauce.",
             "January 1. That was a date, 2. This is ordinary speech.",
-            "1. keep `x += 1` 2. keep code", "1. https://example.com/a 2. /tmp/example",
             "He said \"um\". Keep it in the quotation.", "1. quote \"2. stays exact\"", "အင်္ဂလိပ် hello বাংলা తెలుగు தமிழ் ગુજરાતી"
         ] { #expect(ConservativeFormatting.format(text) == text) }
     }
     @Test func onlyExplicitNumberingCanGainNewlinesWithoutChangingWords() {
+        #expect(ConservativeFormatting.format("1. keep `x += 1` 2. keep code") == "1. keep `x += 1`\n2. keep code")
+        #expect(ConservativeFormatting.format("1. https://example.com/a 2. /tmp/example") == "1. https://example.com/a\n2. /tmp/example")
         #expect(ConservativeFormatting.format("Three tasks: 1. Shop 2. Call Dad 3. Fill the form") == "Three tasks:\n1. Shop\n2. Call Dad\n3. Fill the form")
         #expect(ConservativeFormatting.format("तीन काम: 1. shopping 2. form भर 3. Dad ला call कर") == "तीन काम:\n1. shopping\n2. form भर\n3. Dad ला call कर")
         #expect(ConservativeFormatting.format("go shopping and call dad then fill a passport form") == "go shopping and call dad then fill a passport form")

@@ -79,7 +79,7 @@ inline int nativeTests(){
             while(!response&&now()<deadline){messages();browser.tick();Sleep(10);}if(result.HasKey(L"error"))details.Insert(action,result.GetNamedValue(L"error"));return response&&!result.HasKey(L"error");
         };
         double deadline=now()+30;while(!browser.ready()&&now()<deadline){messages();Sleep(20);}Sleep(200);messages();
-        check(L"webviewFixtureReady",browser.ready());check(L"temporaryChatVerified",request(L"state")&&result.GetNamedBoolean(L"temporary",false));
+        check(L"webviewFixtureReady",browser.ready());check(L"oldBrowserMicrophoneDecisionRemoved",browser.microphoneDecisionReset);check(L"temporaryChatVerified",request(L"state")&&result.GetNamedBoolean(L"temporary",false));
         check(L"browserHidden",!browser.visible());check(L"nativeStreamCreated",request(L"captureNative"));
         std::vector<float> samples(16000);for(size_t i=0;i<samples.size();++i)samples[i]=float(0.3*std::sin(i*2*3.141592653589793*440/16000));
         AudioQueue opening;for(size_t i=0;i<samples.size();i+=160)opening.push(samples.data()+i,160);bool delivered=true;
@@ -97,7 +97,7 @@ inline int nativeTests(){
         details.Insert(L"syntheticAudioEnergy",JValue::CreateNumberValue(energy));
         check(L"changedDraftRefused",!request(L"discard",L"different text"));check(L"matchingDraftRemoved",request(L"discard",L"नमस्ते English मराठी 🎤"));check(L"audioCleanup",request(L"endAudio"));
         check(L"browserProfileFixtureWritten",request(L"fixtureStorage",L"Persistent own profile"));browser.reload();deadline=now()+30;while(!browser.ready()&&now()<deadline){messages();Sleep(20);}
-        check(L"browserProfileSurvivesReconnect",request(L"fixtureStorage")&&result.GetNamedString(L"value",L"")==L"Persistent own profile");browser.close();
+        check(L"microphonePolicySurvivesReconnect",browser.microphoneDecisionReset);check(L"browserProfileSurvivesReconnect",request(L"fixtureStorage")&&result.GetNamedString(L"value",L"")==L"Persistent own profile");browser.close();
     }catch(const std::exception& e){checks.Insert(L"exception",JValue::CreateStringValue(wide(e.what())));}catch(const winrt::hresult_error& e){checks.Insert(L"exception",JValue::CreateNumberValue(e.code().value));}
     bool pass=true;for(auto pair:checks)if(pair.Value().ValueType()!=winrt::Windows::Data::Json::JsonValueType::Boolean||!pair.Value().GetBoolean())pass=false;
     Json report;report.Insert(L"passed",JValue::CreateBooleanValue(pass));report.Insert(L"checks",checks);report.Insert(L"details",details);report.Insert(L"type",JValue::CreateStringValue(L"Windows isolated native storage/window/WebView2 audio fixtures; no account or physical microphone"));atomicWrite(std::filesystem::path(exePath()).parent_path()/L"native-tests.json",std::wstring(report.Stringify()));return pass?0:1;

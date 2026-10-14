@@ -3,6 +3,8 @@
 #include <vector>
 #include <cwctype>
 #include <limits>
+#include <stdexcept>
+#include "../Shared/TranscriptFormatting.h"
 
 namespace flow {
 class TranscriptFinalizer {
@@ -15,31 +17,28 @@ public:
         return time-since_>=0.2;
     }
 };
-// This formatter only changes whitespace around already spoken/written numeric
-// labels. It never guesses lists from prose, edits a token, or interprets speech.
+// Both platforms use the same native UTF-8 formatting engine.
+inline std::string transcriptUTF8(const std::wstring& source) {
+    std::string result;
+    for(size_t i=0;i<source.size();++i){uint32_t c=uint32_t(source[i]);
+        if(c>=0xd800&&c<=0xdbff&&i+1<source.size()){uint32_t low=uint32_t(source[++i]);if(low<0xdc00||low>0xdfff)throw std::runtime_error("Invalid Unicode");c=0x10000+((c-0xd800)<<10)+(low-0xdc00);}
+        if(c>=0xd800&&c<=0xdfff)throw std::runtime_error("Invalid Unicode");
+        if(c<0x80)result+=char(c);
+        else if(c<0x800){result+=char(0xc0|(c>>6));result+=char(0x80|(c&63));}
+        else if(c<0x10000){result+=char(0xe0|(c>>12));result+=char(0x80|((c>>6)&63));result+=char(0x80|(c&63));}
+        else if(c<=0x10ffff){result+=char(0xf0|(c>>18));result+=char(0x80|((c>>12)&63));result+=char(0x80|((c>>6)&63));result+=char(0x80|(c&63));}
+        else throw std::runtime_error("Invalid Unicode");
+    }return result;
+}
+inline std::wstring transcriptWide(const std::string& source){
+    std::wstring result;
+    for(size_t i=0;i<source.size();){uint32_t c=static_cast<unsigned char>(source[i++]);unsigned count=0;
+        if(c>=0xf0){c&=7;count=3;}else if(c>=0xe0){c&=15;count=2;}else if(c>=0xc0){c&=31;count=1;}
+        while(count--){if(i==source.size())throw std::runtime_error("Invalid Unicode");c=(c<<6)|(static_cast<unsigned char>(source[i++])&63);}
+        if(sizeof(wchar_t)==2&&c>0xffff){c-=0x10000;result+=wchar_t(0xd800+(c>>10));result+=wchar_t(0xdc00+(c&1023));}else result+=wchar_t(c);
+    }return result;
+}
 inline std::wstring readableTranscript(const std::wstring& source){
-    if(source.find_first_of(L"`\"'“”‘’")!=std::wstring::npos||source.find(L"://")!=std::wstring::npos||source.find(L"www.")!=std::wstring::npos||source.find(L"\\")!=std::wstring::npos||source.find(L"/")!=std::wstring::npos)return source;
-    struct Marker{size_t position;uint64_t number;};std::vector<Marker> markers;
-    for(size_t i=0;i<source.size();++i){
-        if(source[i]<L'0'||source[i]>L'9'||(i&& !iswspace(source[i-1])))continue;
-        size_t end=i;uint64_t value=0;bool overflow=false;
-        while(end<source.size()&&source[end]>=L'0'&&source[end]<=L'9'){
-            unsigned digit=unsigned(source[end]-L'0');if(value>(std::numeric_limits<uint64_t>::max()-digit)/10){overflow=true;break;}value=value*10+digit;++end;
-        }
-        if(overflow||end>=source.size()||source[end]!=L'.'||end+1>=source.size()||!iswspace(source[end+1]))continue;
-        markers.push_back({i,value});i=end;
-    }
-    if(markers.size()<2||markers.front().number!=1)return source;
-    size_t prefix=markers.front().position;while(prefix&&iswspace(source[prefix-1]))--prefix;
-    if(prefix&&source[prefix-1]!=L':')return source;
-    for(size_t i=1;i<markers.size();++i)if(markers[i].number!=markers[i-1].number+1)return source;
-    std::wstring result=source;
-    for(auto it=markers.rbegin();it!=markers.rend();++it){
-        if(!it->position)continue;size_t start=it->position;
-        while(start&& (result[start-1]==L' '||result[start-1]==L'\t'))--start;
-        if(start&&result[start-1]==L'\n')continue;
-        result.replace(start,it->position-start,L"\n");
-    }
-    return result;
+    try{return transcriptWide(flow_format::format(transcriptUTF8(source)));}catch(...){return source;}
 }
 }

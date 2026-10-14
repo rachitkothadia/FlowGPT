@@ -198,7 +198,7 @@ struct BrowserBridgeView: View {
                 }
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Your words stay your words.").font(.headline)
-                    Text("FlowGpt keeps words, repetition, tone, and scripts unchanged. Existing numbered items can be placed on separate lines. The original returned transcript is always available in History.").foregroundStyle(.secondary)
+                    Text("FlowGpt keeps words, repetition, tone, and scripts unchanged. Clearly introduced lists get bullets, explicit to-do lists get checkboxes, and spoken sequences get numbers. Only clear hesitation sounds are removed. The original returned transcript is always available in History.").foregroundStyle(.secondary)
                     Text("ChatGPT transcribes audio through a saved website session, which may expire. FlowGpt keeps the latest 100 transcripts on this Mac. It never sends a chat message. Multi-hour recordings are not supported.").foregroundStyle(.secondary)
                     Link("GitHub Releases", destination: URL(string: "https://github.com/rachitkothadia/FlowGPT/releases")!)
                 }.font(.callout).fixedSize(horizontal: false, vertical: true)

@@ -2,6 +2,7 @@
 #include "../Formatting.h"
 #include "../ReleasePolicy.h"
 #include <iostream>
+#include "../../Shared/Tests/Fixtures.h"
 #include <stdexcept>
 #include <thread>
 
@@ -61,7 +62,7 @@ int main() {
     AudioQueue stopRace(8);float prefix[]{1,2},tail[]{3,4};stopRace.push(prefix,2);bool producerStopped=false;
     stopAndDrainCapture(stopRace,[&]{producerStopped=true;check(stopRace.push(tail,1),"in-flight packet remains accepted while hardware stops");},[&]{check(producerStopped,"device stops before pending packets are drained");check(stopRace.push(tail+1,1),"pending final capture packet retained");});
     check(stopRace.peekBatch(8).samples==std::vector<float>({1,2,3,4})&&!stopRace.push(tail,1),"stop preserves exact audio tail then rejects later speech");
-    std::vector<std::wstring> preserved={L"hello testing testing",L"मैं कल कल जाऊंगा नहीं शुक्रवार को",L"मराठी English हिन्दी गुजराती ગુજરાતી",L"garam masala Dmart my maby",L"int err = 3; C++ Rust Java Python",L"https://example.com/a/1. /Users/test/file.txt",L"He said \"1. stay 2. leave\"",L"um uh err meaningful fillers uncertain",L"I need shopping and then passport and call my dad",L"1.25 litres and 2.50 kilograms",L"2. second 3. third"};
+    std::vector<std::wstring> preserved={L"hello testing testing",L"मैं कल कल जाऊंगा नहीं शुक्रवार को",L"मराठी English हिन्दी गुजराती ગુજરાતી",L"garam masala Dmart my maby",L"int err = 3; C++ Rust Java Python",L"https://example.com/a/1. /Users/test/file.txt",L"He said \"1. stay 2. leave\"",L"I need shopping and then passport and call my dad",L"1.25 litres and 2.50 kilograms",L"2. second 3. third"};
     for(auto& text:preserved)check(readableTranscript(text)==text,"native formatting preserves lexical content");
     check(readableTranscript(L"Tasks: 1. Apples apples 2. दूध milk 3. मराठी") == L"Tasks:\n1. Apples apples\n2. दूध milk\n3. मराठी","explicit sequential items get whitespace only");
     check(readableTranscript(L"1. Apples\n2. pears") == L"1. Apples\n2. pears","existing formatting remains stable");
@@ -83,5 +84,12 @@ int main() {
     check(!releaseChecksum(digest+L"  app.exe\n"+digest+L"  app.exe\n",L"app.exe"),"duplicate checksum refused");
     check(!releaseChecksum(std::wstring(64,L'g')+L"  app.exe\n",L"app.exe"),"nonhex checksum refused");
     check(!releaseChecksum(digest+L"  other.exe\n",L"app.exe"),"missing filename checksum refused");
+    for(const auto& fixture:formattingFixtures()) {
+        auto source=transcriptWide(fixture.input), expected=transcriptWide(fixture.expected);
+        auto output=readableTranscript(source);
+        check(output==expected,fixture.name);
+        check(readableTranscript(output)==output,"shared fixtures are idempotent");
+    }
+    check(readableTranscript(L"😀 Marathi मराठी हिन्दी हिंदी") == L"😀 Marathi मराठी हिन्दी हिंदी","supplementary Unicode exact round trip");
     std::cout << count << " portable core checks passed\n";
 }
