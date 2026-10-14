@@ -63,7 +63,7 @@ struct App : ApplicationT<App,winrt::Microsoft::UI::Xaml::Markup::IXamlMetadataP
     static SolidColorBrush green(){return SolidColorBrush(winrt::Windows::UI::Color{255,84,139,120});}
     template<typename F>Button button(const std::wstring& text,F fn,bool accent=false){
         Button b;b.Content(box_value(text));b.Padding({16,10,16,10});if(accent){b.Background(green());b.Foreground(SolidColorBrush(winrt::Windows::UI::Color{255,255,255,255}));}
-        b.Click([this,fn](auto&&,auto&&){safely(fn);});return b;
+        b.Click([this,fn](auto&&,auto&&){if(!quitting&&controller)safely(fn);});return b;
     }
     std::wstring shortcutText()const{const wchar_t* values[]{L"Ctrl + Alt + Space",L"Ctrl + Alt + D",L"Ctrl + F8",L"Ctrl + Space"};return values[std::min(hotkeyChoice,3u)];}
     bool busy()const{return controller&&flow::busy(controller->session.state);}

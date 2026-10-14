@@ -200,7 +200,12 @@ public:
         for(;;){std::function<void()> job;{std::unique_lock lock(mutex_);wake_.wait(lock,[this]{return stopping_||!jobs_.empty();});if(jobs_.empty()&&stopping_)break;job=std::move(jobs_.front());jobs_.pop_front();}job();}
         if(lease_)lease_->restore(leaseOwner_);lease_.reset();if(focusSubscribed_)automation_->RemoveFocusChangedEventHandler(focusEvents_.Get());focusEvents_.Reset();automation_.Reset();if(SUCCEEDED(initialized))CoUninitialize();
     }){}
-    ~Insertion(){++generation_;{std::lock_guard lock(mutex_);stopping_=true;}wake_.notify_one();if(thread_.joinable())thread_.join();}
+    ~Insertion(){++generation_;{std::lock_guard lock(mutex_);stopping_=true;}wake_.notify_one();if(thread_.joinable()){
+        // Removing a global UIA subscription may marshal back to this WinUI
+        // apartment. A plain join blocks that callback and deadlocks Quit.
+        HANDLE worker=thread_.native_handle();DWORD index{};
+        while(WaitForSingleObject(worker,0)==WAIT_TIMEOUT){HRESULT wait=CoWaitForMultipleHandles(COWAIT_DISPATCH_CALLS|COWAIT_DISPATCH_WINDOW_MESSAGES,50,1,&worker,&index);if(FAILED(wait)&&wait!=RPC_S_CALLPENDING)Sleep(1);}
+        thread_.join();}}
     void beginCapture(){auto version=++generation_;HWND target=GetForegroundWindow();captureFuture_=submit([this,target,version]{return captureImpl(target,version);});}
     std::optional<bool> captured(){return poll(captureFuture_);}
     void beginPaste(HWND owner,std::wstring text){auto version=generation_.load();pasteFuture_=submit([this,owner,text=std::move(text),version]{return pasteImpl(owner,text,version);});}
