@@ -4,15 +4,17 @@
 
 ### Speak. Keep your flow.
 
-Native macOS dictation that brings ChatGPT's Dictate recorder to your focused text field.
+Native dictation for macOS and Windows that brings ChatGPT's Dictate recorder to your focused text field.
 
 [![macOS](https://img.shields.io/badge/macOS-14%2B-111111?logo=apple&logoColor=white)](Docs/FLOWGPT_10.md)
+[![Windows](https://img.shields.io/badge/Windows-11_x64_preview-0078D4)](Docs/WINDOWS_SETUP.md)
 [![Swift](https://img.shields.io/badge/Swift-6.2%2B-F05138?logo=swift&logoColor=white)](Package.swift)
 [![Version](https://img.shields.io/badge/version-1.0.3-548B78)](CHANGELOG.md)
 [![Build & test](https://github.com/rachitkothadia/FlowGPT/actions/workflows/ci.yml/badge.svg)](https://github.com/rachitkothadia/FlowGPT/actions/workflows/ci.yml)
+[![Windows build](https://github.com/rachitkothadia/FlowGPT/actions/workflows/windows.yml/badge.svg)](https://github.com/rachitkothadia/FlowGPT/actions/workflows/windows.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-548B78)](LICENSE)
 
-[Download DMG](https://github.com/rachitkothadia/FlowGPT/releases/download/v1.0.3/FlowGpt-1.0.3-arm64.dmg) · [Get started](#get-started) · [How it works](#how-it-works) · [Build from source](#build-from-source) · [Contribute](CONTRIBUTING.md)
+[Download Mac DMG](https://github.com/rachitkothadia/FlowGPT/releases/download/v1.0.3/FlowGpt-1.0.3-arm64.dmg) · [Download Windows EXE](https://github.com/rachitkothadia/FlowGPT/releases/download/windows-v1.0.0-preview/FlowGPT-1.0.0-Windows-x64-Setup.exe) · [Get started](#get-started) · [Build from source](#build-from-source)
 
 <img src="Docs/assets/overview.png" alt="FlowGPT dark overview showing the Fn + Space shortcut and example history" width="900" />
 
@@ -22,23 +24,43 @@ Native macOS dictation that brings ChatGPT's Dictate recorder to your focused te
 
 ## Your words, where you need them
 
-Press **Fn + Space**, speak, then press it again. FlowGPT captures your microphone, uses your signed-in ChatGPT website session for transcription, saves the result locally, and attempts to insert it into the field you started from.
+Press **Fn + Space** on Mac or **Ctrl + Alt + Space** on Windows, speak, then press it again. FlowGPT captures your microphone, uses your signed-in ChatGPT website session for transcription, saves the result locally, and attempts to insert it into the field you started from.
 
-Close the settings window and keep working. FlowGPT stays in the menu bar; its compact recording strip shows microphone levels and becomes a loader while transcription finishes.
+Close the settings window and keep working. FlowGPT stays in the menu bar or Windows notification area; its compact recording strip shows microphone levels and becomes a loader while transcription finishes.
 
 | Feature | What it does |
 | --- | --- |
 | Native microphone capture | Starts before browser or network preparation, with opening speech buffered in memory. |
-| Persistent connection | Reuses WebKit's saved ChatGPT website session across app launches. Expired sessions need sign-in again. |
-| Focused-field insertion | Uses Accessibility where supported, with automatic paste and clipboard restoration for other editors. |
-| Local history | Saves searchable transcripts on your Mac before attempting insertion. |
+| Persistent connection | Reuses the local WebKit or WebView2 ChatGPT profile across app launches. Expired sessions need sign-in again. |
+| Focused-field insertion | Checks the original destination and attempts automatic insertion with clipboard restoration where supported. |
+| Local history | Saves searchable transcripts on your computer before attempting insertion. |
 | Quiet background operation | Keeps the connection renderer hidden and avoids reopening Settings after completion. |
 | Connection recovery | Checks idle readiness and wake events, with bounded retries that protect active recordings and drafts. |
-| Native appearance | SwiftUI and AppKit, with Liquid Glass on macOS 26 and a material fallback on older versions. |
+| Native appearance | SwiftUI/AppKit with Liquid Glass on supported Macs; C++/WinRT and WinUI 3 with Mica on Windows. |
 
-> **Connection model:** this is an experimental embedded-browser bridge, not official ChatGPT OAuth or an OpenAI speech API integration. A hidden WebKit renderer remains active inside FlowGPT. Website UI changes, session expiry, account limits, and network availability can affect it. There is no guarantee of permanent login or unlimited usage. FlowGPT is an independent project, unaffiliated with OpenAI or Wispr.
+> **Connection model:** this is an experimental embedded-browser bridge, not official ChatGPT OAuth or an OpenAI speech API integration. An embedded renderer remains active inside FlowGPT. Website UI changes, session expiry, account limits, and network availability can affect it. There is no guarantee of permanent login or unlimited usage. FlowGPT is an independent project, unaffiliated with OpenAI or Wispr.
 
 ## Get started
+
+### Windows preview
+
+**Requirements:** Windows 11, an Intel/AMD x64 PC, a ChatGPT account with Dictate available, and internet access.
+
+1. [Download the Windows EXE installer](https://github.com/rachitkothadia/FlowGPT/releases/download/windows-v1.0.0-preview/FlowGPT-1.0.0-Windows-x64-Setup.exe). Run it to install for your Windows account; it includes the native runtime and checks Microsoft's WebView2 Runtime.
+2. Open FlowGPT and choose **Continue with ChatGPT / Manage connection**. Sign in yourself, then close the connection window. Each user has their own local profile.
+3. Enable desktop microphone access in Windows Settings if capture is denied. Choose your input device in FlowGPT Settings.
+4. Test with **Test dictation here**, then focus a field in another app and use **Ctrl + Alt + Space** to start and finish.
+5. Closing the window keeps the tray app running. Login startup is selected by default during installation and can be changed in Settings.
+
+This first Windows preview is **unsigned**; Windows SmartScreen may show an unknown-publisher warning. Use the release checksum to verify the exact file. macOS quarantine commands do not apply to Windows. A trusted Windows signing certificate is required to establish a publisher identity; this build does not claim one.
+
+Read [Windows setup and the friend test checklist](Docs/WINDOWS_SETUP.md) and [Windows verification evidence](Docs/WINDOWS_VALIDATION.md). Automated Windows fixtures check storage, paste, buffered browser audio, UI, and installation. Real microphone performance, a real signed-in ChatGPT transcription, and your friend's target editors still need testing on their PC.
+
+<img src="Docs/assets/windows-overview.png" alt="Actual Windows WinUI 3 app running the isolated UI fixture with sample history" width="900" />
+
+*Captured from the running Windows app. The connection and history shown use an isolated test fixture, without a real ChatGPT account.*
+
+### macOS
 
 **Requirements:** macOS 14+, an Apple Silicon Mac for the current local DMG, a ChatGPT account with Dictate available, and an internet connection.
 
@@ -84,15 +106,15 @@ Download [SHA256SUMS.txt](https://github.com/rachitkothadia/FlowGPT/releases/dow
 
 ```mermaid
 flowchart LR
-    A[Fn + Space] --> B[Native microphone]
+    A[Fn + Space / Ctrl + Alt + Space] --> B[Native microphone]
     B --> C[Bounded PCM buffer]
-    C --> D[Hidden WebKit / ChatGPT Dictate]
+    C --> D[Embedded browser / ChatGPT Dictate]
     D --> E[Unchanged transcript]
     E --> F[Local history]
     F --> G[Focused text field]
 ```
 
-Swift's capture-only `AVCaptureSession` delivers 16 kHz mono PCM. A Web Audio stream feeds those samples to ChatGPT's page recorder. When you finish, FlowGPT stops native capture, drains queued samples, and waits for the unsent composer transcript.
+Swift's capture-only `AVCaptureSession` on Mac and C++ WASAPI capture on Windows deliver 16 kHz mono PCM. A Web Audio stream feeds those samples to ChatGPT's page recorder. When you finish, FlowGPT stops native capture, drains queued samples, and waits for the unsent composer transcript.
 
 The result is saved locally before the matching draft is cleared or insertion is attempted. **FlowGPT does not send a ChatGPT message.** It does not scrape existing conversations or extract login tokens. No separate browser, Selenium process, MCP server, Groq request, or local language-prediction layer participates in the current dictation path.
 
@@ -123,6 +145,10 @@ These are startup measurements and software checks, not accuracy scores or unive
 *Screenshots use isolated visual fixtures with sample history; they do not expose a real account or microphone session.*
 
 ## Build from source
+
+The Windows project is under [`Windows/`](Windows/). See [Windows build instructions](Docs/WINDOWS_SETUP.md#build-on-windows). Native WinUI compilation needs a Windows toolchain; portable policy checks can also run on macOS. The Windows pipeline builds and tests the actual EXE installer.
+
+For macOS:
 
 Install Swift 6.2+ and a compatible macOS SDK through Xcode or Command Line Tools. The package has no third-party Swift dependencies.
 
@@ -157,7 +183,7 @@ See [signing and notarization setup](Docs/DISTRIBUTION.md). Universal compilatio
 
 - Audio is sent to OpenAI through ChatGPT's website for transcription.
 - Native audio is buffered in memory during dictation, without a local recording file in this current path.
-- Website login data is managed by WebKit locally; transcripts are stored in `~/Library/Application Support/Flow/`.
+- Website login data is managed locally by the embedded browser. Mac transcripts are under `~/Library/Application Support/Flow/`; Windows transcripts, settings, and the WebView2 profile are under `%LOCALAPPDATA%\FlowGPT\`.
 - Temporary Chat is verified before recording, but does not guarantee zero OpenAI retention. See [OpenAI's Temporary Chat guidance](https://help.openai.com/en/articles/8914046-temporary-chat-faq).
 - The historical `in.vardaan.flow` bundle ID and `Flow` data folder are retained to preserve existing sessions and history.
 - Legacy API and lecture code remains in the source tree for historical reference. It is not the active FlowGPT bridge. Older personal data is not deleted automatically.
@@ -171,6 +197,7 @@ Sources/FlowQA/        Developer diagnostics and historical API checks
 Tests/FlowCoreTests/   Native regression suite
 Scripts/              Build, package, and distribution tools
 Resources/            App metadata, icon generation inputs, entitlements
+Windows/              C++/WinRT app, WinUI UI, WASAPI, WebView2 bridge, EXE installer
 Docs/                 Setup, architecture evidence, release notes, screenshots
 ```
 
