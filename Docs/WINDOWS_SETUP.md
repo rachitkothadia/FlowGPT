@@ -4,11 +4,17 @@ The Windows implementation uses C++/WinRT, WinUI 3, WASAPI microphone capture, a
 
 ## Install and connect
 
-1. Use Windows 11 on an Intel/AMD x64 PC. Download `FlowGPT-1.0.0-Windows-x64-Setup.exe` from the provided test release.
-2. Run the installer. It installs the app for your Windows account and checks Microsoft Edge WebView2 Runtime. The first Windows preview is unsigned; Windows trust/reputation warnings are possible. No Mac quarantine command applies to Windows.
-3. Open FlowGPT and choose **Continue with ChatGPT / Manage connection**. Sign in yourself, then close that connection window. The saved profile is reused on later launches and ordinary upgrades; expired/revoked sessions require another sign-in.
-4. Open Windows microphone privacy from FlowGPT Settings. Enable microphone access for desktop applications if capture is denied. Choose your microphone in FlowGPT.
-5. Use **Test dictation here** for a local result saved to History. For another application, focus an editable field and use **Ctrl + Alt + Space**, then press again to finish.
+You need Windows 11 on an Intel/AMD 64-bit PC, internet access, and your own ChatGPT account with dictation available. No API key is needed.
+
+1. **[Download FlowGPT for Windows (.exe)](https://github.com/rachitkothadia/FlowGPT/releases/download/windows-v1.0.0-preview/FlowGPT-1.0.0-Windows-x64-Setup.exe).**
+2. **Install it.** Double-click the file, follow the installer, then open **FlowGPT** from the Start menu.
+3. **Connect ChatGPT.** Click **Continue with ChatGPT / Manage connection**, sign in, then close the connection window.
+4. **Allow your microphone if recording is blocked.** Open **Windows Settings → Privacy & security → Microphone** and turn on **Microphone access** and **Let desktop apps access your microphone**. Select your input device in FlowGPT Settings if needed.
+5. **Dictate.** Click an editable text field, press **Ctrl + Alt + Space**, speak, then press the same shortcut again to finish.
+
+The installer checks Microsoft WebView2 Runtime automatically. This preview is unsigned, so Windows may show an unknown-publisher warning. See [installation help](../README.md#need-help-installing). The [release page](https://github.com/rachitkothadia/FlowGPT/releases/tag/windows-v1.0.0-preview) includes the EXE and its checksum.
+
+Use **Test dictation here** to try recording inside FlowGPT. Results are saved in **History**. Your own local ChatGPT profile is reused between launches and ordinary upgrades; expired sessions need sign-in again.
 
 Settings offers alternative shortcuts if another app already owns the combination. Microphone access is established by actual capture, not a hardcoded green permission indicator. Windows does not use macOS Accessibility/Input Monitoring grants.
 

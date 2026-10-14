@@ -14,7 +14,7 @@ Native dictation for macOS and Windows that brings ChatGPT's Dictate recorder to
 [![Windows build](https://github.com/rachitkothadia/FlowGPT/actions/workflows/windows.yml/badge.svg)](https://github.com/rachitkothadia/FlowGPT/actions/workflows/windows.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-548B78)](LICENSE)
 
-[Download Mac DMG](https://github.com/rachitkothadia/FlowGPT/releases/download/v1.0.3/FlowGpt-1.0.3-arm64.dmg) · [Download Windows EXE](https://github.com/rachitkothadia/FlowGPT/releases/download/windows-v1.0.0-preview/FlowGPT-1.0.0-Windows-x64-Setup.exe) · [Get started](#get-started) · [Build from source](#build-from-source)
+[Download for Mac](https://github.com/rachitkothadia/FlowGPT/releases/download/v1.0.3/FlowGpt-1.0.3-arm64.dmg) · [Download for Windows](https://github.com/rachitkothadia/FlowGPT/releases/download/windows-v1.0.0-preview/FlowGPT-1.0.0-Windows-x64-Setup.exe) · [Installation](#installation) · [Features](#features)
 
 <img src="Docs/assets/overview.png" alt="FlowGPT dark overview showing the Fn + Space shortcut and example history" width="900" />
 
@@ -22,87 +22,117 @@ Native dictation for macOS and Windows that brings ChatGPT's Dictate recorder to
 
 </div>
 
-## Your words, where you need them
+## Installation
 
-Press **Fn + Space** on Mac or **Ctrl + Alt + Space** on Windows, speak, then press it again. FlowGPT captures your microphone, uses your signed-in ChatGPT website session for transcription, saves the result locally, and attempts to insert it into the field you started from.
+Choose your computer below. You need internet access and your own ChatGPT account with dictation available. **No API key is needed.**
 
-Close the settings window and keep working. FlowGPT stays in the menu bar or Windows notification area; its compact recording strip shows microphone levels and becomes a loader while transcription finishes.
+### Windows
 
-| Feature | What it does |
-| --- | --- |
-| Native microphone capture | Starts before browser or network preparation, with opening speech buffered in memory. |
-| Persistent connection | Reuses the local WebKit or WebView2 ChatGPT profile across app launches. Expired sessions need sign-in again. |
-| Focused-field insertion | Checks the original destination and attempts automatic insertion with clipboard restoration where supported. |
-| Local history | Saves searchable transcripts on your computer before attempting insertion. |
-| Quiet background operation | Keeps the connection renderer hidden and avoids reopening Settings after completion. |
-| Connection recovery | Checks idle readiness and wake events, with bounded retries that protect active recordings and drafts. |
-| Native appearance | SwiftUI/AppKit with Liquid Glass on supported Macs; C++/WinRT and WinUI 3 with Mica on Windows. |
+**Works on Windows 11, on an Intel or AMD 64-bit PC.**
 
-> **Connection model:** this is an experimental embedded-browser bridge, not official ChatGPT OAuth or an OpenAI speech API integration. An embedded renderer remains active inside FlowGPT. Website UI changes, session expiry, account limits, and network availability can affect it. There is no guarantee of permanent login or unlimited usage. FlowGPT is an independent project, unaffiliated with OpenAI or Wispr.
+1. **[Download FlowGPT for Windows (.exe)](https://github.com/rachitkothadia/FlowGPT/releases/download/windows-v1.0.0-preview/FlowGPT-1.0.0-Windows-x64-Setup.exe).**
+2. **Install it.** Double-click the downloaded file, follow the installer, then open **FlowGPT** from the Start menu.
+3. **Connect ChatGPT.** Click **Continue with ChatGPT / Manage connection**, sign in to your account, then close the connection window.
+4. **Allow your microphone if recording is blocked.** Open **Windows Settings → Privacy & security → Microphone**. Turn on **Microphone access** and **Let desktop apps access your microphone**.
+5. **Dictate.** Click the text box you want to type into. Press **Ctrl + Alt + Space**, speak, then press the same shortcut again to finish.
 
-## Get started
+*This Windows release is an unsigned preview. If Windows shows a security warning, see the help below.*
 
-### Windows preview
+### Mac
 
-**Requirements:** Windows 11, an Intel/AMD x64 PC, a ChatGPT account with Dictate available, and internet access.
+**Works on macOS 14 or newer, on an Apple Silicon Mac (M1 or later).**
 
-1. [Download the Windows EXE installer](https://github.com/rachitkothadia/FlowGPT/releases/download/windows-v1.0.0-preview/FlowGPT-1.0.0-Windows-x64-Setup.exe). Run it to install for your Windows account; it includes the native runtime and checks Microsoft's WebView2 Runtime.
-2. Open FlowGPT and choose **Continue with ChatGPT / Manage connection**. Sign in yourself, then close the connection window. Each user has their own local profile.
-3. Enable desktop microphone access in Windows Settings if capture is denied. Choose your input device in FlowGPT Settings.
-4. Test with **Test dictation here**, then focus a field in another app and use **Ctrl + Alt + Space** to start and finish.
-5. Closing the window keeps the tray app running. Login startup is selected by default during installation and can be changed in Settings.
+1. **[Download FlowGPT for Mac (.dmg)](https://github.com/rachitkothadia/FlowGPT/releases/download/v1.0.3/FlowGpt-1.0.3-arm64.dmg).** Double-click the downloaded file.
+2. **Install it.** Drag **FlowGpt.app** into **Applications**, then open it from Applications.
+3. **Connect ChatGPT.** Click **Continue with ChatGPT**, sign in to your account, then close the connection window.
+4. **Allow the three permissions.** Enable **Microphone**, **Accessibility**, and **Input Monitoring** for FlowGpt when prompted. You can also find them in **System Settings → Privacy & Security**.
+5. **Dictate.** Click the text box you want to type into. Press **Fn + Space**, speak, then press the same shortcut again to finish.
 
-This first Windows preview is **unsigned**; Windows SmartScreen may show an unknown-publisher warning. Use the release checksum to verify the exact file. macOS quarantine commands do not apply to Windows. A trusted Windows signing certificate is required to establish a publisher identity; this build does not claim one.
+*The Mac release is not notarized by Apple yet. If it won't open, see the help below.*
 
-Read [Windows setup and the friend test checklist](Docs/WINDOWS_SETUP.md) and [Windows verification evidence](Docs/WINDOWS_VALIDATION.md). Automated Windows fixtures check storage, paste, buffered browser audio, UI, and installation. Real microphone performance, a real signed-in ChatGPT transcription, and your friend's target editors still need testing on their PC.
+**After setup:** you can close FlowGPT's main window and keep using the shortcut. Open it again from the Mac menu bar or the Windows tray near the clock. Your transcripts are saved in **History**, including when insertion into another app fails.
 
-<img src="Docs/assets/windows-overview.png" alt="Actual Windows WinUI 3 app running the isolated UI fixture with sample history" width="900" />
+### Need help installing?
 
-*Captured from the running Windows app. The connection and history shown use an isolated test fixture, without a real ChatGPT account.*
+<details>
+<summary><strong>Mac says the app cannot be opened</strong></summary>
 
-### macOS
+Make sure you have dragged **FlowGpt.app into Applications** first.
 
-**Requirements:** macOS 14+, an Apple Silicon Mac for the current local DMG, a ChatGPT account with Dictate available, and an internet connection.
+Try opening it, then go to **System Settings → Privacy & Security → Open Anyway**. See [Apple's instructions](https://support.apple.com/102445).
 
-1. [Download FlowGpt-1.0.3-arm64.dmg](https://github.com/rachitkothadia/FlowGPT/releases/download/v1.0.3/FlowGpt-1.0.3-arm64.dmg) from the [1.0.3 preview release](https://github.com/rachitkothadia/FlowGPT/releases/tag/v1.0.3). This installer supports Apple Silicon; it is ad hoc signed and **not notarized**.
-2. Drag **FlowGpt.app** into **Applications** and open it.
-3. Choose **Continue with ChatGPT** and sign in yourself in the connection window.
-4. Grant **Microphone**, **Accessibility**, and **Input Monitoring** to the installed app.
-5. Put your cursor in an editable field. Press **Fn + Space** to record and again to finish.
-
-Use **Test dictation here** first if you want a local preview without inserting into another app. When an editor cannot accept or confirm insertion, the transcript remains in History.
-
-### If macOS blocks the downloaded app
-
-After copying **FlowGpt.app into Applications**, try opening it and check **System Settings → Privacy & Security → Open Anyway**. If that option is unavailable, and you trust the copy downloaded from this repository, run this once in Terminal:
+If **Open Anyway** is missing, and you trust the app downloaded from this repository, open **Terminal**, paste this line, and press Return:
 
 ```sh
 xattr -dr com.apple.quarantine "/Applications/FlowGpt.app" && open "/Applications/FlowGpt.app"
 ```
 
-This removes the download quarantine flag only from FlowGpt and opens it. It bypasses the quarantine check for this copy; it does not notarize the app or disable Gatekeeper globally. The DMG does not run this command automatically. Microphone, Accessibility, and Input Monitoring still require your approval afterward.
+This removes the download quarantine flag from FlowGpt only. It does not grant microphone or typing permissions; complete step 4 afterward.
 
-The release includes a checksum file. Before installing, you can compare the downloaded DMG with it:
+</details>
+
+<details>
+<summary><strong>Windows shows a warning or the microphone is blocked</strong></summary>
+
+The preview is unsigned, so Windows may warn that the publisher is unknown. If you see **Windows protected your PC** and trust this repository's download, click **More info → Run anyway**, if available. See [Microsoft's guidance](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/publish-first-app#step-6-handle-smartscreen-for-new-apps). Some security policies may block unsigned apps; this installer cannot override them.
+
+For microphone problems, check **Settings → Privacy & security → Microphone** and enable **Microphone access** and **Let desktop apps access your microphone**. In **FlowGPT → Settings**, select the microphone you want to use. See [Microsoft's microphone guide](https://support.microsoft.com/en-us/windows/privacy/turn-on-app-permissions-for-your-microphone-in-windows).
+
+The installer checks the required Microsoft WebView2 Runtime automatically. Keep your internet connection on during installation.
+
+</details>
+
+<details>
+<summary><strong>The shortcut works, but no text appears</strong></summary>
+
+- Open **History** to find your transcript.
+- Try **Test dictation here** in FlowGPT to check recording without another app.
+- If the ChatGPT connection has expired, open **Manage connection** and sign in again.
+- On Mac, check **Accessibility** and **Input Monitoring** for FlowGpt. On Windows, try another shortcut in FlowGPT Settings if the current one is unavailable.
+- Keep the destination field focused. Password fields, read-only fields, and some protected/custom editors cannot accept insertion.
+
+</details>
+
+<details>
+<summary><strong>Verify the downloaded installer (optional)</strong></summary>
+
+Each release includes a **SHA256SUMS.txt** file alongside its installer:
+
+- [Mac installer and checksum](https://github.com/rachitkothadia/FlowGPT/releases/tag/v1.0.3)
+- [Windows installer and checksum](https://github.com/rachitkothadia/FlowGPT/releases/tag/windows-v1.0.0-preview)
+
+On Mac, download the DMG and its checksum into Downloads, then run:
 
 ```sh
 cd ~/Downloads
 shasum -a 256 -c SHA256SUMS.txt
 ```
 
-Download [SHA256SUMS.txt](https://github.com/rachitkothadia/FlowGPT/releases/download/v1.0.3/SHA256SUMS.txt) into the same folder as the DMG. Expected SHA-256 for this exact installer: `c29f6f95bed5871fcb2a20a010c20d7550926429f524a8295b25a61ba522e489`.
+On Windows, open PowerShell in Downloads and compare this result with the Windows checksum file:
 
-<details>
-<summary><strong>Connection, permission, and installation troubleshooting</strong></summary>
-
-- **App won't open:** the current local package is ad hoc signed and unnotarized, so downloaded copies can be blocked by Gatekeeper. Follow [Apple's app-opening guidance](https://support.apple.com/102445). A valid local signature is not equivalent to Developer ID notarization. See [public distribution](Docs/DISTRIBUTION.md).
-- **Shortcut or insertion unavailable:** check the three permission rows against macOS Privacy & Security. Installing a rebuilt ad hoc app can require refreshed grants. FlowGPT does not reset the privacy database.
-- **Connection expired:** open Settings → Manage connection and sign in again. The saved website session can be revoked by ChatGPT.
-- **Opening words or processing delay:** local recording starts before the browser, but transcription still depends on ChatGPT. Unsent native audio is bounded to 30 seconds; overflow reports an error rather than silently dropping speech.
-- **No text appears:** check History. Some custom editors do not support insertion or allow verification. Password fields, read-only fields, and changed destinations are refused.
+```powershell
+Get-FileHash .\FlowGPT-1.0.0-Windows-x64-Setup.exe -Algorithm SHA256
+```
 
 </details>
 
+## Features
+
+Speak into the field you are working in. FlowGPT records your voice, gets the transcription from your ChatGPT connection, saves it locally, and attempts to insert it into that field.
+
+| Feature | What it does |
+| --- | --- |
+| Microphone recording | Buffers opening speech while the connection prepares. |
+| Saved connection | Keeps your own ChatGPT sign-in locally between launches. Expired sessions need sign-in again. |
+| Automatic insertion | Attempts to insert into your original field and restores the clipboard where supported. |
+| Local history | Saves searchable transcripts on your computer. |
+| Background operation | Keeps running in the menu bar or tray when you close the main window. |
+| Compact recording strip | Shows microphone levels, then a loader while transcription finishes. |
+| Native interface | A Mac interface with Liquid Glass where supported, and a Windows interface built with WinUI 3. |
+
 ## How it works
+
+> **Connection model:** FlowGPT uses an experimental embedded-browser bridge, not official ChatGPT OAuth or an OpenAI speech API. The embedded renderer stays active inside FlowGPT. Website changes, session expiry, account limits, and internet availability can affect it. Permanent login and unlimited usage are not guaranteed. FlowGPT is independent of OpenAI and Wispr.
 
 ```mermaid
 flowchart LR
@@ -143,6 +173,12 @@ These are startup measurements and software checks, not accuracy scores or unive
 </table>
 
 *Screenshots use isolated visual fixtures with sample history; they do not expose a real account or microphone session.*
+
+<img src="Docs/assets/windows-overview.png" alt="Actual Windows WinUI 3 app running the isolated UI fixture with sample history" width="900" />
+
+*The Windows screenshot uses an isolated test connection and sample history.*
+
+Read [Windows setup and the friend test checklist](Docs/WINDOWS_SETUP.md) and [Windows verification evidence](Docs/WINDOWS_VALIDATION.md) for detailed checks. Real microphone performance, signed-in ChatGPT transcription, and your target editors still need testing on your Windows PC.
 
 ## Build from source
 
@@ -205,6 +241,6 @@ Start with [ChatGPTBrowser.swift](Sources/FlowApp/ChatGPTBrowser.swift), [Native
 
 ## Contributing
 
-Bug reports should include your macOS version, processor, FlowGPT version, and a reproducible example with private content removed. Read [CONTRIBUTING.md](CONTRIBUTING.md) before changing the capture, insertion, or signing path. Please report sensitive issues through the instructions in [SECURITY.md](SECURITY.md).
+Bug reports should include your operating system version, processor, FlowGPT version, and a reproducible example with private content removed. Read [CONTRIBUTING.md](CONTRIBUTING.md) before changing the capture, insertion, or signing path. Please report sensitive issues through the instructions in [SECURITY.md](SECURITY.md).
 
 Licensed under [MIT](LICENSE). Built by [Rachit Kothadia](https://github.com/rachitkothadia).
