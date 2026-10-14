@@ -95,7 +95,12 @@ inline std::string normalizeMoney(const std::string& text){
         bool technical=false;for(const auto* term:{"variable","code","course","class","version","build","status","rows","items","times","half","quarter","डेढ़","सवा","साढ़े","पौने"})if(before==term||after==term)technical=true;
         bool weight=false;
         if(raw=="pounds"||raw=="pound")for(const auto* term:{"of","weight","weighs","weighed","weigh","heavy","lbs","lb"})if(before==term||after==term)weight=true;
-        if(technical||weight||tokens[a].start<consumed)continue;
+        bool unclearMultiplier=false;
+        if(a&&moneyScale(tokens[a].word)&&trim(text.substr(tokens[a-1].end,tokens[a].start-tokens[a-1].end)).empty()){
+            unclearMultiplier=true;
+            for(const auto* word:{"paid","pay","cost","costs","owe","owes","need","needs","spend","spending","for","about","around","approximately","me","us","you","him","her","them","मुझे","हमें","तुम्हें","उसे","चाहिए","दिए","लगे"})if(before==word)unclearMultiplier=false;
+        }
+        if(technical||weight||unclearMultiplier||tokens[a].start<consumed)continue;
         edits.push_back({tokens[a].start,tokens[b-1].end,moneyDisplay(symbol,amount)});consumed=tokens[b-1].end;i=end-1;
     }
     auto result=text;for(auto e=edits.rbegin();e!=edits.rend();++e)result.replace(e->a,e->b-e->a,e->value);return result;

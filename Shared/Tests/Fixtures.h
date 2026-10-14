@@ -256,5 +256,7 @@ And yeah, हाँ,
 ```)fixture"},
 {R"fixture(negative values are not bullet markers)fixture",R"fixture(- 5
 - 10)fixture",R"fixture(- 5
-- 10)fixture"}
+- 10)fixture"},
+{R"fixture(unsupported spelled multiplier stays complete)fixture",R"fixture(मुझे चौबीस सौ रुपये चाहिए।)fixture",R"fixture(मुझे चौबीस सौ रुपये चाहिए।)fixture"},
+{R"fixture(clear implicit hundred after price verb)fixture",R"fixture(I paid hundred Swiss francs.)fixture",R"fixture(I paid CHF 100.)fixture"}
 }; }

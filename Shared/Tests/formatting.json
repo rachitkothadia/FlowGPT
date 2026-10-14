@@ -393,5 +393,15 @@
     "name": "negative values are not bullet markers",
     "input": "- 5\n- 10",
     "expected": "- 5\n- 10"
+  },
+  {
+    "name": "unsupported spelled multiplier stays complete",
+    "input": "मुझे चौबीस सौ रुपये चाहिए।",
+    "expected": "मुझे चौबीस सौ रुपये चाहिए।"
+  },
+  {
+    "name": "clear implicit hundred after price verb",
+    "input": "I paid hundred Swiss francs.",
+    "expected": "I paid CHF 100."
   }
 ]
