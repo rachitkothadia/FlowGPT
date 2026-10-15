@@ -36,4 +36,17 @@ Capture, login storage, permissions and insertion are unchanged. The installed M
 - The fixture harness passes AddressSanitizer and UndefinedBehaviorSanitizer checks.
 - A 1,000-item no-introduction list retains every item and formats in about 12 ms on the development Mac. This measures local formatting, not transcription latency.
 
-These are software/fixture results; they do not establish perfect classification of arbitrary speech or new live-microphone/Office behavior. Packaged-platform evidence is recorded below when the release jobs finish.
+These are software/fixture results; they do not establish perfect classification of arbitrary speech or new live-microphone/Office behavior.
+
+Packaged application source: `710682434e8d3ed9016cec9a55bc903e3941f0f7`.
+
+| Packaged/platform verification | Result |
+| --- | --- |
+| Mac CI | [Passed](https://github.com/rachitkothadia/FlowGPT/actions/runs/38681408940) |
+| Windows native build, browser/UI fixtures and installer lifecycle | [Passed](https://github.com/rachitkothadia/FlowGPT/actions/runs/38681408897) |
+| Packaged Mac synthetic browser checks | 50 passed |
+| Packaged Mac window checks | 10 passed |
+
+Evidence: [native formatting report](formatting-validation-131.json), [shared full-output regression cases](../Shared/Tests/formatting.json), [Mac browser](mac-browser-fixtures-131.json), [Mac windows](mac-window-fixtures-131.json), [Windows native app/browser](windows-native-fixtures-131.json), [Windows UI](windows-ui-fixtures-131.json), [Windows installer](windows-installer-fixtures-131.json).
+
+The Windows artifact is verified against its GitHub artifact digest, extracted members' ZIP CRCs, and the bundled installer checksum. Release upload digests are compared with local installer and checksum bytes before publication. Each platform release includes its own `SHA256SUMS.txt`.
