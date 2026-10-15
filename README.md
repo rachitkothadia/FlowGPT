@@ -9,7 +9,7 @@ Native dictation for macOS and Windows that brings ChatGPT's Dictate recorder to
 [![macOS](https://img.shields.io/badge/macOS-14%2B-111111?logo=apple&logoColor=white)](Docs/FLOWGPT_10.md)
 [![Windows](https://img.shields.io/badge/Windows-11_x64_preview-0078D4)](Docs/WINDOWS_SETUP.md)
 [![Swift](https://img.shields.io/badge/Swift-6.2%2B-F05138?logo=swift&logoColor=white)](Package.swift)
-[![Version](https://img.shields.io/badge/version-1.3.0-548B78)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.3.1-548B78)](CHANGELOG.md)
 [![Build & test](https://github.com/rachitkothadia/FlowGPT/actions/workflows/ci.yml/badge.svg)](https://github.com/rachitkothadia/FlowGPT/actions/workflows/ci.yml)
 [![Windows build](https://github.com/rachitkothadia/FlowGPT/actions/workflows/windows.yml/badge.svg)](https://github.com/rachitkothadia/FlowGPT/actions/workflows/windows.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-548B78)](LICENSE)
