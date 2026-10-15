@@ -14,7 +14,7 @@ Native dictation for macOS and Windows that brings ChatGPT's Dictate recorder to
 [![Windows build](https://github.com/rachitkothadia/FlowGPT/actions/workflows/windows.yml/badge.svg)](https://github.com/rachitkothadia/FlowGPT/actions/workflows/windows.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-548B78)](LICENSE)
 
-[Download for Mac](https://github.com/rachitkothadia/FlowGPT/releases/download/v1.3.0/FlowGpt-1.3.0-arm64.dmg) · [Download for Windows](https://github.com/rachitkothadia/FlowGPT/releases/download/windows-v1.3.0/FlowGPT-1.3.0-Windows-x64-Setup.exe) · [Installation](#installation) · [Features](#features)
+[Download for Mac](https://github.com/rachitkothadia/FlowGPT/releases/download/v1.3.1/FlowGpt-1.3.1-arm64.dmg) · [Download for Windows](https://github.com/rachitkothadia/FlowGPT/releases/download/windows-v1.3.1/FlowGPT-1.3.1-Windows-x64-Setup.exe) · [Installation](#installation) · [Features](#features)
 
 <img src="Docs/assets/overview.png" alt="FlowGPT dark overview showing the Fn + Space shortcut and example history" width="900" />
 
@@ -30,7 +30,7 @@ Choose your computer below. You need internet access and your own ChatGPT accoun
 
 **Works on Windows 11, on an Intel or AMD 64-bit PC.**
 
-1. **[Download FlowGPT for Windows (.exe)](https://github.com/rachitkothadia/FlowGPT/releases/download/windows-v1.3.0/FlowGPT-1.3.0-Windows-x64-Setup.exe).**
+1. **[Download FlowGPT for Windows (.exe)](https://github.com/rachitkothadia/FlowGPT/releases/download/windows-v1.3.1/FlowGPT-1.3.1-Windows-x64-Setup.exe).**
 2. **Install it.** Double-click the downloaded file, follow the installer, then open **FlowGPT** from the Start menu.
 3. **Connect ChatGPT.** Click **Connect ChatGPT**, sign in to your account, then close the connection window.
 4. **Allow your microphone if recording is blocked.** Open **Windows Settings → Privacy & security → Microphone**. Turn on **Microphone access** and **Let desktop apps access your microphone**.
@@ -42,7 +42,7 @@ Choose your computer below. You need internet access and your own ChatGPT accoun
 
 **Works on macOS 14 or newer, on an Apple Silicon Mac (M1 or later).**
 
-1. **[Download FlowGPT for Mac (.dmg)](https://github.com/rachitkothadia/FlowGPT/releases/download/v1.3.0/FlowGpt-1.3.0-arm64.dmg).** Double-click the downloaded file.
+1. **[Download FlowGPT for Mac (.dmg)](https://github.com/rachitkothadia/FlowGPT/releases/download/v1.3.1/FlowGpt-1.3.1-arm64.dmg).** Double-click the downloaded file.
 2. **Install it.** Drag **FlowGpt.app** into **Applications**, then open it from Applications.
 3. **Connect ChatGPT.** Click **Connect ChatGPT**, sign in to your account, then close the connection window.
 4. **Allow the three permissions.** Enable **Microphone**, **Accessibility**, and **Input Monitoring** for FlowGpt when prompted. You can also find them in **System Settings → Privacy & Security**.
@@ -98,20 +98,20 @@ The installer checks the required Microsoft WebView2 Runtime automatically. Keep
 
 Each release includes a **SHA256SUMS.txt** file alongside its installer:
 
-- [Mac installer and checksum](https://github.com/rachitkothadia/FlowGPT/releases/tag/v1.3.0)
-- [Windows installer and checksum](https://github.com/rachitkothadia/FlowGPT/releases/tag/windows-v1.3.0)
+- [Mac installer and checksum](https://github.com/rachitkothadia/FlowGPT/releases/tag/v1.3.1)
+- [Windows installer and checksum](https://github.com/rachitkothadia/FlowGPT/releases/tag/windows-v1.3.1)
 
 The shared checksum file contains both installers. On Mac, download it alongside the DMG, run the command below, and compare the DMG hash with its matching entry:
 
 ```sh
 cd ~/Downloads
-shasum -a 256 FlowGpt-1.3.0-arm64.dmg
+shasum -a 256 FlowGpt-1.3.1-arm64.dmg
 ```
 
 On Windows, open PowerShell in Downloads and compare this result with the Windows checksum file:
 
 ```powershell
-Get-FileHash .\FlowGPT-1.3.0-Windows-x64-Setup.exe -Algorithm SHA256
+Get-FileHash .\FlowGPT-1.3.1-Windows-x64-Setup.exe -Algorithm SHA256
 ```
 
 </details>
@@ -156,7 +156,7 @@ In version 1.1, text-field checks run separately from the Windows UI, clipboard 
 
 ### Verification
 
-Version 1.3 uses one formatter on both platforms. Its [behavior, test cases and release verification](Docs/FLOWGPT_13.md) cover automatic circle lists, sequences, currency amounts and content-preservation cases. The measurements below are historical 1.1 results, not newly measured microphone or Office performance for 1.3.
+Version 1.3.1 uses one formatter on both platforms. Its [behavior, test cases and release verification](Docs/FLOWGPT_131.md) cover automatic circle lists, sequences, currency amounts and content-preservation cases. The measurements below are historical 1.1 results, not newly measured microphone or Office performance for 1.3.
 
 | Check | Result |
 | --- | --- |
@@ -212,7 +212,7 @@ Scripts/test.sh
 Scripts/build-flowgpt.sh
 ```
 
-The local builder creates **FlowGpt-1.3.0-arm64.dmg in the project root**. Build/test logs and the staged app stay under `release/flowgpt/`. This local build is ad hoc signed by default and is not suitable for frictionless public distribution.
+The local builder creates **FlowGpt-1.3.1-arm64.dmg in the project root**. Build/test logs and the staged app stay under `release/flowgpt/`. This local build is ad hoc signed by default and is not suitable for frictionless public distribution.
 
 For an isolated UI preview with sample data and no microphone or sign-in:
 

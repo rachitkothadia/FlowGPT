@@ -128,6 +128,11 @@ inline std::string unjoin(std::string text){
     for(const auto* prefix:{"and then ","then ","and ","और ","आणि ","અને "})if(begins(text,prefix)){text=text.substr(std::char_traits<char>::length(prefix));break;}
     return text;
 }
+inline bool connectorOnly(const std::string& source){
+    auto t=lower(trim(source));while(!t.empty()&&(t.back()=='.'||t.back()==','||t.back()==':'))t.pop_back();
+    for(const auto* word:{"and","then","and then","और","आणि","અને","et","und","y","e","и","と","和"})if(t==word)return true;
+    return t.empty();
+}
 inline bool proceduralItem(const std::string& text){
     auto t=unjoin(text);
     for(const auto* p:{"open ","click ","press ","select ","edit ","save ","close ","type ","enter ","tap ","खोलो ","दबाओ ","निवडा "})if(begins(t,p))return true;
@@ -139,7 +144,7 @@ inline bool monetaryItem(const std::string& text){
 }
 inline int itemKind(const std::string& source){
     auto t=unjoin(source);while(!t.empty()&&(t.back()=='.'||t.back()==','))t.pop_back();
-    if(t.empty()||t.find('?')!=std::string::npos)return 0;
+    if(connectorOnly(t)||t.find('?')!=std::string::npos)return 0;
     for(const auto* term:{"okay","ok","well","so","yeah","and yeah","हाँ","हां","ओके","अच्छा"})if(t==term)return 0;
     size_t count=1;for(char c:t)if(space(c))++count;if(count>22)return 0;
     for(const auto* p:{"when ","if ","no ","not ","actually ","wait ","instead ","नहीं ","नाही ","but ","because ","what ","how ","why "})if(begins(t,p))return 0;
@@ -174,6 +179,13 @@ inline size_t itemStart(const std::string& s,size_t a,size_t b){
     while(a+offset<b&&space(s[a+offset]))++offset;return a+offset;
 }
 struct ListedSentence { std::string text;bool listed=false; };
+inline bool additiveItem(const std::string& source){
+    auto t=unjoin(source);
+    for(const auto* prefix:{"also ","plus ","और एक ","आणखी ","इसके अलावा "})if(begins(t,prefix))return true;
+    for(const auto* suffix:{" as well"," too"," भी"," सुद्धा"}){
+        auto p=t.rfind(suffix);if(p!=std::string::npos){auto tail=trim(t.substr(p+std::char_traits<char>::length(suffix)));if(tail.empty()||tail=="."||tail=="।")return true;}
+    }return false;
+}
 inline ListedSentence listSentence(const std::string& s,bool continuation){
     auto t=lower(trim(s));
     for(const auto* p:{"i am ","i'm ","it is ","it's ","i was ","it was "})if(begins(t,p)&&t.find("buy ")==std::string::npos)return {s,false};
@@ -183,7 +195,11 @@ inline ListedSentence listSentence(const std::string& s,bool continuation){
     for(size_t p=0;p<s.size();++p){if(mask[p])continue;
         if(s[p]==','){append(p);start=p+1;continue;}
         for(const auto* join:{" and then "," and "," then "," और "," आणि "," અને "," ਅਤੇ "," اور "," এবং "," আৰু "," ଏବଂ "," மற்றும் "," మరియు "," ಮತ್ತು "," ഒപ്പം "," र "," et "," und "," y "," e "," и "," と "," 和 "," 및 "}){
-            size_t n=std::char_traits<char>::length(join);if(s.compare(p,n,join)==0){append(p);start=p+1;p+=n-1;break;}
+            size_t n=std::char_traits<char>::length(join);if(s.compare(p,n,join)==0){
+                // A leading connector belongs to the item that follows it.
+                if(!connectorOnly(s.substr(start,p-start))){append(p);start=p+1;}
+                p+=n-1;break;
+            }
         }
     }append(s.size());
     for(auto& part:pieces){
@@ -201,11 +217,12 @@ inline ListedSentence listSentence(const std::string& s,bool continuation){
     for(size_t i=0;i<pieces.size();){if(!pieces[i].kind){++i;continue;}size_t end=i;while(end<pieces.size()&&pieces[end].kind)++end;
         bool distinct=true;
         for(size_t k=i;k+1<end;++k)if(unjoin(s.substr(pieces[k].item,pieces[k].end-pieces[k].item))==unjoin(s.substr(pieces[k+1].item,pieces[k+1].end-pieces[k+1].item)))distinct=false;
-        bool single=continuation&&end==i+1&&monetaryItem(s.substr(pieces[i].item,pieces[i].end-pieces[i].item));
+        auto candidate=s.substr(pieces[i].item,pieces[i].end-pieces[i].item);
+        bool single=continuation&&end==i+1&&(monetaryItem(candidate)||additiveItem(candidate));
         bool concise=true,actions=true;
         for(size_t k=i;k<end;++k){auto phrase=unjoin(s.substr(pieces[k].item,pieces[k].end-pieces[k].item));concise=concise&&std::count(phrase.begin(),phrase.end(),' ')<=1;actions=actions&&pieces[k].kind>=2;}
         bool explicitDelimiter=s.find(',')!=std::string::npos||s.find(':')!=std::string::npos;
-        if((end-i>=2&&distinct&&(end-i>=3||explicitDelimiter||concise||actions))||single){a=i;b=end;found=true;break;}i=end;
+        if((end-i>=2&&distinct&&(end-i>=3||explicitDelimiter||concise||actions||(continuation&&pieces[i].kind>=2)))||single){a=i;b=end;found=true;break;}i=end;
     }
     if(!found)return {s,false};
     bool ordered=b-a>=2;for(size_t i=a;i<b;++i)ordered=ordered&&pieces[i].kind==3;
@@ -222,15 +239,71 @@ inline ListedSentence listSentence(const std::string& s,bool continuation){
     return {out,true};
 }
 inline std::string enumerations(const std::string& s){
-    if(s.find("\n• ")!=std::string::npos||s.find("\n1. ")!=std::string::npos)return s;
-    auto mask=protectedBytes(s);std::string out;bool continuation=false;size_t from=0;
+    auto mask=protectedBytes(s);std::string out;unsigned context=0;size_t from=0;bool priorListed=false;
     while(from<s.size()){
-        size_t end=sentenceEnd(s,mask,from);auto processed=listSentence(s.substr(from,end-from),continuation);
-        if(!out.empty()&&begins(processed.text,"• ")){while(!out.empty()&&space(out.back()))out.pop_back();out+="\n\n";}
-        out+=processed.text;continuation=processed.listed;
+        bool existing=!mask[from]&&begins(s.substr(from),"• ");
+        size_t lineEnd=s.find('\n',from);if(lineEnd==std::string::npos)lineEnd=s.size();
+        size_t end=existing?lineEnd:std::min(lineEnd,sentenceEnd(s,mask,from));
+        bool quoted=mask[from]&&((from&&mask[from-1])||s[from]=='`'||s[from]=='"'||begins(s.substr(from),"“")||begins(s.substr(from),"‘"));
+        auto processed=existing?ListedSentence{s.substr(from,end-from),true}:quoted?ListedSentence{s.substr(from,end-from),false}:listSentence(s.substr(from,end-from),context>0);
+        if(!quoted&&!out.empty()&&begins(processed.text,"• ")){
+            auto at=out.find_last_not_of(" \t\r\n");auto gap=out.substr(at==std::string::npos?0:at+1);out=at==std::string::npos?"":out.substr(0,at+1);
+            if(!out.empty())out+=priorListed?"\n":existing&&gap.find('\n')!=std::string::npos?gap:out.back()==':'?"\n":"\n\n";
+        }
+        out+=processed.text;priorListed=processed.listed;
+        if(processed.listed)context=3;else if(context)--context;
         size_t next=end;while(next<s.size()&&space(s[next]))++next;
-        if(next<s.size())out+=continuation?"\n\n":s.substr(end,next-end);
+        if(next<s.size())out+=processed.listed?"\n\n":s.substr(end,next-end);
         from=next;
+    }return out;
+}
+struct DeclaredSentence {size_t begin,end;unsigned ordinal;};
+inline unsigned declaredOrdinal(const std::string& source){
+    auto t=unjoin(source);if(begins(t,"the "))t=t.substr(4);
+    static const char* words[]={"one","first","second","third","fourth","fifth","sixth","seventh","eighth","ninth","tenth","eleventh","twelfth","thirteenth","fourteenth","fifteenth","sixteenth","seventeenth","eighteenth","nineteenth","twentieth"};
+    for(size_t i=0;i<sizeof(words)/sizeof(*words);++i){std::string w=words[i];if(begins(t,w+" is ")||begins(t,w+" would be "))return i<2?1:unsigned(i);}
+    static const std::pair<const char*,unsigned> native[]={{"पहला",1},{"पहली",1},{"दूसरा",2},{"दूसरी",2},{"तीसरा",3},{"तीसरी",3},{"चौथा",4},{"पहिले",1},{"दुसरे",2},{"तिसरे",3}};
+    for(const auto& w:native){std::string p=w.first;if(begins(t,p+" ")&&(t.find(" है")!=std::string::npos||t.find(" आहे")!=std::string::npos))return w.second;}
+    return 0;
+}
+inline bool explanationSentence(const std::string& source){
+    auto t=lower(trim(source));if(t.find('?')!=std::string::npos)return false;
+    for(const auto* p:{"so for ","for that ","because ","since ","it ","it's ","this ","which ","that one ","इसके लिए ","क्योंकि ","त्यासाठी "})if(begins(t,p))return true;
+    return false;
+}
+// Establish sibling item boundaries across sentences before splitting coordinated phrases.
+// Explanatory sentences remain attached to the preceding declared object.
+inline std::string declaredLists(const std::string& s){
+    auto mask=protectedBytes(s);std::vector<DeclaredSentence> sentences;
+    for(size_t p=0;p<s.size();){size_t end=sentenceEnd(s,mask,p);unsigned ordinal=mask[p]?0:declaredOrdinal(s.substr(p,end-p));sentences.push_back({p,end,ordinal});p=end;while(p<s.size()&&space(s[p]))++p;}
+    struct Edit{size_t begin,end;std::string text;};std::vector<Edit> edits;
+    for(size_t i=0;i<sentences.size();++i){if(sentences[i].ordinal!=1)continue;
+        std::vector<size_t> starts{i};size_t end=i+1;unsigned next=2;
+        for(;end<sentences.size();++end){auto& sentence=sentences[end];if(sentence.ordinal==next){starts.push_back(end);++next;continue;}
+            if(!sentence.ordinal&&explanationSentence(s.substr(sentence.begin,sentence.end-sentence.begin)))continue;
+            break;
+        }
+        if(starts.size()<2)continue;
+        std::string out;
+        for(size_t k=0;k<starts.size();++k){auto from=sentences[starts[k]].begin;auto through=sentences[k+1<starts.size()?starts[k+1]-1:end-1].end;
+            if(!out.empty())out+='\n';out+="• "+trim(s.substr(from,through-from));
+        }
+        auto through=sentences[end-1].end;if(end<sentences.size()){through=sentences[end].begin;out+="\n\n";}
+        edits.push_back({sentences[i].begin,through,out});i=end-1;
+    }
+    auto out=s;for(auto i=edits.rbegin();i!=edits.rend();++i)out.replace(i->begin,i->end-i->begin,i->text);return out;
+}
+inline std::string joinedConnectorBullets(const std::string& s){
+    auto mask=protectedBytes(s);std::string out;size_t from=0;
+    while(from<s.size()){
+        auto end=s.find('\n',from);if(end==std::string::npos)end=s.size();auto line=s.substr(from,end-from);auto item=trim(line);
+        while(!mask[from]&&begins(item,"• ")&&connectorOnly(item.substr(4))&&end<s.size()){
+            auto next=end+1;while(next<s.size()&&space(s[next]))++next;
+            if(s.compare(next,4,"• ")!=0||mask[next])break;
+            auto nextEnd=s.find('\n',next);if(nextEnd==std::string::npos)nextEnd=s.size();
+            line+=" "+s.substr(next+4,nextEnd-next-4);item=trim(line);end=nextEnd;
+        }
+        out+=line;if(end<s.size())out+='\n';from=end+1;
     }return out;
 }
 inline std::string circleExistingBullets(const std::string& text){
@@ -246,10 +319,11 @@ inline std::string circleExistingBullets(const std::string& text){
 }
 inline std::string format(const std::string& source) {
     if(source.size()>100000)return source;
-    auto text=circleExistingBullets(normalizeMoney(capitalize(fillers(source))));
-    if(text.find("\n• ")!=std::string::npos||text.find("\n1. ")!=std::string::npos)return text;
+    auto text=joinedConnectorBullets(circleExistingBullets(normalizeMoney(capitalize(fillers(source)))));
+    if(text.find("\n1. ")!=std::string::npos)return text;
     auto numeric=separateNumeric(text);if(numeric!=text)return numeric;
-    auto ordered=spokenSequence(text);if(ordered!=text)return ordered;
+    auto declared=declaredLists(text);if(declared!=text)return enumerations(declared);
+    if(text.find("\n• ")==std::string::npos){auto ordered=spokenSequence(text);if(ordered!=text)return ordered;}
     return enumerations(text);
 }
 }

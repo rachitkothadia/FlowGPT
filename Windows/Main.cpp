@@ -237,7 +237,7 @@ struct App : ApplicationT<App,winrt::Microsoft::UI::Xaml::Markup::IXamlMetadataP
         theme.SelectionChanged([this,theme](auto&&,auto&&){safely([&]{int index=theme.SelectedIndex();if(index<0)return;navigation.RequestedTheme(index==1?ElementTheme::Light:index==2?ElementTheme::Dark:ElementTheme::Default);controller->store.setting(L"appearance",flow::JValue::CreateStringValue(index==1?L"Light":index==2?L"Dark":L"System"));});});content.Children().Append(theme);
     }
     void about(){
-        content.Children().Append(heading(L"Version 1.3.0 · Windows preview",18));
+        content.Children().Append(heading(L"Version 1.3.1 · Windows preview",18));
         content.Children().Append(label(L"Speak into your ChatGPT connection. Your dictations are saved on this computer.",14,true));
         content.Children().Append(heading(L"Updates",17));updateStatus=label(updates.state().message);content.Children().Append(updateStatus);
         updateAction=button(L"Check for updates",[this]{auto state=updates.state();if(busy())return;if(state.downloaded){if(updates.install(hwnd))quit();}else if(state.available)updates.download();else updates.check();});content.Children().Append(updateAction);renderUpdates();

@@ -258,5 +258,85 @@ And yeah, हाँ,
 - 10)fixture",R"fixture(- 5
 - 10)fixture"},
 {R"fixture(unsupported spelled multiplier stays complete)fixture",R"fixture(मुझे चौबीस सौ रुपये चाहिए।)fixture",R"fixture(मुझे चौबीस सौ रुपये चाहिए।)fixture"},
-{R"fixture(clear implicit hundred after price verb)fixture",R"fixture(I paid hundred Swiss francs.)fixture",R"fixture(I paid CHF 100.)fixture"}
+{R"fixture(clear implicit hundred after price verb)fixture",R"fixture(I paid hundred Swiss francs.)fixture",R"fixture(I paid CHF 100.)fixture"},
+{R"fixture(1.3 reported full mixed shopping explanation and resumption)fixture",R"fixture(Okay. So I'm going for DMart. So I have multiple things which I need to buy. One is the laptop. So for laptop I would go for Dell Alienware. And second is MacBook sleeve, because I need to cover my MacBook. The third is a charging cable for my MacBook, which is gonna be C to C type. And then I would go for wafers and maybe some T-shirts. And Brijesh, तेको क्या चाहिए? Okay. So a toothbrush as well.)fixture",R"fixture(Okay. So I'm going for DMart. So I have multiple things which I need to buy.
+
+• One is the laptop. So for laptop I would go for Dell Alienware.
+• And second is MacBook sleeve, because I need to cover my MacBook.
+• The third is a charging cable for my MacBook, which is gonna be C to C type.
+• And then I would go for wafers
+• and maybe some T-shirts.
+
+And Brijesh, तेको क्या चाहिए? Okay.
+
+• So a toothbrush as well.)fixture"},
+{R"fixture(1.3 existing broken connector bullets do not disable earlier item detection)fixture",R"fixture(Okay. So I'm going for DMart. So I have multiple things which I need to buy. One is the laptop. So for laptop I would go for Dell Alienware. And second is MacBook sleeve, because I need to cover my MacBook. The third is a charging cable for my MacBook, which is gonna be C to C type. 
+
+• And
+• then I would go for wafers
+• and maybe some T-shirts.
+
+ And Brijesh, तेको क्या चाहिए? Okay. So a toothbrush as well.)fixture",R"fixture(Okay. So I'm going for DMart. So I have multiple things which I need to buy.
+
+• One is the laptop. So for laptop I would go for Dell Alienware.
+• And second is MacBook sleeve, because I need to cover my MacBook.
+• The third is a charging cable for my MacBook, which is gonna be C to C type.
+• And then I would go for wafers
+• and maybe some T-shirts.
+
+And Brijesh, तेको क्या चाहिए? Okay.
+
+• So a toothbrush as well.)fixture"},
+{R"fixture(meeting declared items retain explanations)fixture",R"fixture(Our agenda has several items. One is the budget. It includes the revised estimates. The second is staffing, because two people are away. The third is the delivery date. Call me tomorrow.)fixture",R"fixture(Our agenda has several items.
+
+• One is the budget. It includes the revised estimates.
+• The second is staffing, because two people are away.
+• The third is the delivery date.
+
+Call me tomorrow.)fixture"},
+{R"fixture(travel declared purchases independent of shopping vocabulary)fixture",R"fixture(One is a rail pass. For that I have already set aside €90. Second is travel insurance. This covers the whole journey. Third is a hotel reservation.)fixture",R"fixture(• One is a rail pass. For that I have already set aside €90.
+• Second is travel insurance. This covers the whole journey.
+• Third is a hotel reservation.)fixture"},
+{R"fixture(long technical requirement explanation is retained)fixture",R"fixture(One is an event broker, because every service needs to receive the same events in order without losing the original identifiers during a network outage. Second is an audit store, which keeps the original records.)fixture",R"fixture(• One is an event broker, because every service needs to receive the same events in order without losing the original identifiers during a network outage.
+• Second is an audit store, which keeps the original records.)fixture"},
+{R"fixture(Hindi declared items preserve explanation and script)fixture",R"fixture(पहला नारियल तेल है। इसके लिए एक छोटा डिब्बा चाहिए। दूसरा एक परदा है क्योंकि कमरे में धूप आती है। तीसरा एक लैपटॉप है।)fixture",R"fixture(• पहला नारियल तेल है। इसके लिए एक छोटा डिब्बा चाहिए।
+• दूसरा एक परदा है क्योंकि कमरे में धूप आती है।
+• तीसरा एक लैपटॉप है।)fixture"},
+{R"fixture(Marathi declared items preserve explanation)fixture",R"fixture(पहिले काम backup घेणे आहे। त्यासाठी disk तयार आहे। दुसरे काम report पाठवणे आहे। तिसरे काम meeting ठेवणे आहे।)fixture",R"fixture(• पहिले काम backup घेणे आहे। त्यासाठी disk तयार आहे।
+• दुसरे काम report पाठवणे आहे।
+• तिसरे काम meeting ठेवणे आहे।)fixture"},
+{R"fixture(leading And then is never a connector bullet)fixture",R"fixture(And then I would go for notebooks, and maybe some pens.)fixture",R"fixture(• And then I would go for notebooks
+• and maybe some pens.)fixture"},
+{R"fixture(existing list unpriced addition after question)fixture",R"fixture(• batteries
+• notebooks
+
+Mira, what do you need? Okay. A charger as well.)fixture",R"fixture(• batteries
+• notebooks
+
+Mira, what do you need? Okay.
+
+• A charger as well.)fixture"},
+{R"fixture(existing connector bullet merges with its following item)fixture",R"fixture(• apples
+• And
+• then oranges
+• pears)fixture",R"fixture(• apples
+• And then oranges
+• pears)fixture"},
+{R"fixture(quoted declared sequence remains literal)fixture",R"fixture(She said "One is a laptop. Second is a sleeve." I wrote it down.)fixture",R"fixture(She said "One is a laptop. Second is a sleeve." I wrote it down.)fixture"},
+{R"fixture(unrelated intervening statement prevents declared grouping)fixture",R"fixture(One is a laptop. I feel very tired today. Second is a sleeve.)fixture",R"fixture(One is a laptop. I feel very tired today. Second is a sleeve.)fixture"},
+{R"fixture(as well does not turn ordinary sentences into list items)fixture",R"fixture(I went to the office. I spoke to my manager as well.)fixture",R"fixture(I went to the office. I spoke to my manager as well.)fixture"},
+{R"fixture(existing literal bullet code remains untouched)fixture",R"fixture(```text
+• And
+• then oranges
+```)fixture",R"fixture(```text
+• And
+• then oranges
+```)fixture"},
+{R"fixture(multiple connector bullet fragments merge in one pass)fixture",R"fixture(• apples
+• And
+• then
+• oranges
+• pears)fixture",R"fixture(• apples
+• And then oranges
+• pears)fixture"}
 }; }

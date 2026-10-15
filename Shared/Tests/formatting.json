@@ -403,5 +403,80 @@
     "name": "clear implicit hundred after price verb",
     "input": "I paid hundred Swiss francs.",
     "expected": "I paid CHF 100."
+  },
+  {
+    "name": "1.3 reported full mixed shopping explanation and resumption",
+    "input": "Okay. So I'm going for DMart. So I have multiple things which I need to buy. One is the laptop. So for laptop I would go for Dell Alienware. And second is MacBook sleeve, because I need to cover my MacBook. The third is a charging cable for my MacBook, which is gonna be C to C type. And then I would go for wafers and maybe some T-shirts. And Brijesh, तेको क्या चाहिए? Okay. So a toothbrush as well.",
+    "expected": "Okay. So I'm going for DMart. So I have multiple things which I need to buy.\n\n• One is the laptop. So for laptop I would go for Dell Alienware.\n• And second is MacBook sleeve, because I need to cover my MacBook.\n• The third is a charging cable for my MacBook, which is gonna be C to C type.\n• And then I would go for wafers\n• and maybe some T-shirts.\n\nAnd Brijesh, तेको क्या चाहिए? Okay.\n\n• So a toothbrush as well."
+  },
+  {
+    "name": "1.3 existing broken connector bullets do not disable earlier item detection",
+    "input": "Okay. So I'm going for DMart. So I have multiple things which I need to buy. One is the laptop. So for laptop I would go for Dell Alienware. And second is MacBook sleeve, because I need to cover my MacBook. The third is a charging cable for my MacBook, which is gonna be C to C type. \n\n• And\n• then I would go for wafers\n• and maybe some T-shirts.\n\n And Brijesh, तेको क्या चाहिए? Okay. So a toothbrush as well.",
+    "expected": "Okay. So I'm going for DMart. So I have multiple things which I need to buy.\n\n• One is the laptop. So for laptop I would go for Dell Alienware.\n• And second is MacBook sleeve, because I need to cover my MacBook.\n• The third is a charging cable for my MacBook, which is gonna be C to C type.\n• And then I would go for wafers\n• and maybe some T-shirts.\n\nAnd Brijesh, तेको क्या चाहिए? Okay.\n\n• So a toothbrush as well."
+  },
+  {
+    "name": "meeting declared items retain explanations",
+    "input": "Our agenda has several items. One is the budget. It includes the revised estimates. The second is staffing, because two people are away. The third is the delivery date. Call me tomorrow.",
+    "expected": "Our agenda has several items.\n\n• One is the budget. It includes the revised estimates.\n• The second is staffing, because two people are away.\n• The third is the delivery date.\n\nCall me tomorrow."
+  },
+  {
+    "name": "travel declared purchases independent of shopping vocabulary",
+    "input": "One is a rail pass. For that I have already set aside €90. Second is travel insurance. This covers the whole journey. Third is a hotel reservation.",
+    "expected": "• One is a rail pass. For that I have already set aside €90.\n• Second is travel insurance. This covers the whole journey.\n• Third is a hotel reservation."
+  },
+  {
+    "name": "long technical requirement explanation is retained",
+    "input": "One is an event broker, because every service needs to receive the same events in order without losing the original identifiers during a network outage. Second is an audit store, which keeps the original records.",
+    "expected": "• One is an event broker, because every service needs to receive the same events in order without losing the original identifiers during a network outage.\n• Second is an audit store, which keeps the original records."
+  },
+  {
+    "name": "Hindi declared items preserve explanation and script",
+    "input": "पहला नारियल तेल है। इसके लिए एक छोटा डिब्बा चाहिए। दूसरा एक परदा है क्योंकि कमरे में धूप आती है। तीसरा एक लैपटॉप है।",
+    "expected": "• पहला नारियल तेल है। इसके लिए एक छोटा डिब्बा चाहिए।\n• दूसरा एक परदा है क्योंकि कमरे में धूप आती है।\n• तीसरा एक लैपटॉप है।"
+  },
+  {
+    "name": "Marathi declared items preserve explanation",
+    "input": "पहिले काम backup घेणे आहे। त्यासाठी disk तयार आहे। दुसरे काम report पाठवणे आहे। तिसरे काम meeting ठेवणे आहे।",
+    "expected": "• पहिले काम backup घेणे आहे। त्यासाठी disk तयार आहे।\n• दुसरे काम report पाठवणे आहे।\n• तिसरे काम meeting ठेवणे आहे।"
+  },
+  {
+    "name": "leading And then is never a connector bullet",
+    "input": "And then I would go for notebooks, and maybe some pens.",
+    "expected": "• And then I would go for notebooks\n• and maybe some pens."
+  },
+  {
+    "name": "existing list unpriced addition after question",
+    "input": "• batteries\n• notebooks\n\nMira, what do you need? Okay. A charger as well.",
+    "expected": "• batteries\n• notebooks\n\nMira, what do you need? Okay.\n\n• A charger as well."
+  },
+  {
+    "name": "existing connector bullet merges with its following item",
+    "input": "• apples\n• And\n• then oranges\n• pears",
+    "expected": "• apples\n• And then oranges\n• pears"
+  },
+  {
+    "name": "quoted declared sequence remains literal",
+    "input": "She said \"One is a laptop. Second is a sleeve.\" I wrote it down.",
+    "expected": "She said \"One is a laptop. Second is a sleeve.\" I wrote it down."
+  },
+  {
+    "name": "unrelated intervening statement prevents declared grouping",
+    "input": "One is a laptop. I feel very tired today. Second is a sleeve.",
+    "expected": "One is a laptop. I feel very tired today. Second is a sleeve."
+  },
+  {
+    "name": "as well does not turn ordinary sentences into list items",
+    "input": "I went to the office. I spoke to my manager as well.",
+    "expected": "I went to the office. I spoke to my manager as well."
+  },
+  {
+    "name": "existing literal bullet code remains untouched",
+    "input": "```text\n• And\n• then oranges\n```",
+    "expected": "```text\n• And\n• then oranges\n```"
+  },
+  {
+    "name": "multiple connector bullet fragments merge in one pass",
+    "input": "• apples\n• And\n• then\n• oranges\n• pears",
+    "expected": "• apples\n• And then oranges\n• pears"
   }
 ]

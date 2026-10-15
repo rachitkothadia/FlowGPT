@@ -47,7 +47,7 @@ import Observation
             #else
             let architecture = "x86_64"
             #endif
-            available = ReleaseUpdatePolicy.latestMac(releases, current: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.3.0", architecture: architecture)
+            available = ReleaseUpdatePolicy.latestMac(releases, current: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.3.1", architecture: architecture)
             message = available.map { "Version \($0.version) is available\($0.preview ? " (preview)" : "")." } ?? "You’re using the latest compatible version."
         } catch { message = "Couldn’t check for updates. Check your connection and try again." }
     }

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.1
+
+- Keep declared list items and their explanatory sentences together across sentence boundaries.
+- Keep leading connectors with their following item; repair connector-only bullet fragments outside code and quotes.
+- Continue a clear list after an addressed question when an additional item is spoken, without requiring a price.
+- Format untouched prose around existing bullets; preserve already-formatted list spacing and quoted/code content.
+- Add the full reported bilingual example and cross-domain regression cases.
+
 ## 1.3.0
 
 - Detect coordinated item phrases and parallel actions without mandatory list-introduction words; keep full conversational clauses separate.
