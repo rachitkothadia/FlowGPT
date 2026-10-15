@@ -1,6 +1,7 @@
 #pragma once
 #include "Browser.h"
 #include "Hud.h"
+#include "AppController.h"
 
 namespace flow {
 inline bool richProbe=false;
@@ -39,6 +40,11 @@ inline int nativeTests(){
     try{
         Store a(root/L"store");a.load();a.save(L"हिन्दी English मराठी 🎤\nC++ Rust");a.setting(L"appearance",JValue::CreateStringValue(L"Dark"));
         Store b(root/L"store");b.load();check(L"historySurvivesReopen",b.entries.size()==1&&b.entries[0].text==a.entries[0].text);check(L"settingsSurviveReopen",b.settings.GetNamedString(L"appearance")==L"Dark");
+        auto startupRoot=L"Software\\FlowGPT\\Tests\\"+guid();StartupRegistration login(startupRoot+L"\\Run",startupRoot+L"\\Preference");
+        login.synchronize();check(L"startupDefaultsToRegistered",login.enabled()&&login.preference()==true);
+        login.set(false);login.synchronize();check(L"startupExplicitOptOutPersists",!login.enabled()&&login.preference()==false);
+        login.set(true);StartupRegistration relocated(startupRoot+L"\\Run",startupRoot+L"\\Preference",L"C:\\FlowGPT fixture\\FlowGPT.exe");
+        relocated.synchronize();check(L"startupRepairsMovedExecutable",relocated.enabled()&&!login.enabled());RegDeleteTreeW(HKEY_CURRENT_USER,startupRoot.c_str());
         for(int i=0;i<105;++i)a.save(L"Fixture "+std::to_wstring(i));check(L"historyBounded",a.entries.size()==100);a.erase(a.entries[0].id);Store c(root/L"store");c.load();check(L"deletePersists",c.entries.size()==99);
         atomicWrite(root/L"store"/L"history.json",L"broken");bool corrupt=false;try{Store d(root/L"store");d.load();}catch(...){corrupt=true;}check(L"corruptionReportedWithoutOverwrite",corrupt&&read(root/L"store"/L"history.json")==L"broken");
         check(L"hotkeyRegistration",RegisterHotKey(nullptr,89,MOD_CONTROL|MOD_ALT|MOD_NOREPEAT,VK_F11)!=FALSE);UnregisterHotKey(nullptr,89);
@@ -73,6 +79,7 @@ inline int nativeTests(){
         Hud hud;hud.update(State::recording,0.7);messages();check(L"popupVisible",IsWindowVisible(hud.handle())!=FALSE);check(L"popupNonactivating",(GetWindowLongPtrW(hud.handle(),GWL_EXSTYLE)&WS_EX_NOACTIVATE)!=0);
         RECT before{},after{};GetWindowRect(hud.handle(),&before);for(int i=0;i<5;++i){hud.update(State::recording,i*0.1);messages();}GetWindowRect(hud.handle(),&after);check(L"popupPositionStableDuringRecording",EqualRect(&before,&after)!=FALSE);
         hud.update(State::finished,0);check(L"popupHidesAfterFinish",IsWindowVisible(hud.handle())==FALSE);
+        hud.update(State::error,0);check(L"errorPopupDoesNotDisappearAsSuccess",IsWindowVisible(hud.handle())!=FALSE);hud.update(State::finished,0);
         Browser browser(root/L"browser",true);browser.init();bool response=false;Json result;
         auto request=[&](const std::wstring& action,const std::wstring& expected=L""){
             response=false;browser.call(action,[&](Json j){result=j;response=true;},expected);double deadline=now()+10;
@@ -98,6 +105,23 @@ inline int nativeTests(){
         check(L"changedDraftRefused",!request(L"discard",L"different text"));check(L"matchingDraftRemoved",request(L"discard",L"नमस्ते English मराठी 🎤"));check(L"audioCleanup",request(L"endAudio"));
         check(L"browserProfileFixtureWritten",request(L"fixtureStorage",L"Persistent own profile"));browser.reload();deadline=now()+30;while(!browser.ready()&&now()<deadline){messages();Sleep(20);}
         check(L"microphonePolicySurvivesReconnect",browser.microphoneDecisionReset);check(L"browserProfileSurvivesReconnect",request(L"fixtureStorage")&&result.GetNamedString(L"value",L"")==L"Persistent own profile");browser.close();
+        {
+            AppController controller(nullptr,true);auto wait=[&](auto predicate,double seconds){auto until=now()+seconds;while(now()<until){messages();controller.tick();if(predicate())return true;Sleep(20);}return predicate();};
+            check(L"controllerConnectionReady",wait([&]{return controller.browser.connected;},30));
+            controller.begin(true);check(L"controllerNativeCaptureStarts",wait([&]{return controller.session.state==State::recording&&controller.recorderMs>0;},10));
+            auto keepRecordingUntil=now()+0.7;while(now()<keepRecordingUntil){messages();controller.tick();Sleep(20);}
+            check(L"visibleDictateBehindRecorderDoesNotPrematurelyFinish",controller.session.state==State::recording&&controller.microphone.running());
+            controller.finish();check(L"controllerFinishesThroughHistory",wait([&]{return !busy(controller.session.state);},15)&&controller.session.state==State::finished&&controller.store.entries.size()==2);
+            check(L"controllerReturnedTranscriptExact",controller.result==L"नमस्ते English मराठी 🎤"&&controller.store.entries.front().raw==controller.result);
+            bool signalReturned=false;Json signal;controller.browser.call(L"fixtureSignal",[&](Json j){signal=j;signalReturned=true;});
+            check(L"controllerFixtureAudioHasSignal",wait([&]{return signalReturned;},8)&&signal.GetNamedBoolean(L"signal",false)&&signal.GetNamedNumber(L"duration",0)>0.3);
+            check(L"controllerDraftClearedBeforeNextRecording",wait([&]{return !controller.browser.active&&!controller.browser.hasDraft;},8));
+            controller.begin(true);controller.session.local=false; // Model an unavailable external insertion target, without typing into any real app.
+            check(L"missingTargetDoesNotStopNativeCapture",wait([&]{return controller.session.state==State::recording&&controller.recorderMs>0;},10));
+            auto secondUntil=now()+0.4;while(now()<secondUntil){messages();controller.tick();Sleep(20);}controller.finish();
+            check(L"missingTargetStillSavesTranscript",wait([&]{return !busy(controller.session.state);},15)&&controller.session.state==State::finished&&controller.store.entries.size()==3&&controller.result==L"नमस्ते English मराठी 🎤");
+            check(L"missingTargetShowsHistoryRecovery",controller.message.find(L"Saved to History")!=std::wstring::npos);
+        }
     }catch(const std::exception& e){checks.Insert(L"exception",JValue::CreateStringValue(wide(e.what())));}catch(const winrt::hresult_error& e){checks.Insert(L"exception",JValue::CreateNumberValue(e.code().value));}
     bool pass=true;for(auto pair:checks)if(pair.Value().ValueType()!=winrt::Windows::Data::Json::JsonValueType::Boolean||!pair.Value().GetBoolean())pass=false;
     Json report;report.Insert(L"passed",JValue::CreateBooleanValue(pass));report.Insert(L"checks",checks);report.Insert(L"details",details);report.Insert(L"type",JValue::CreateStringValue(L"Windows isolated native storage/window/WebView2 audio fixtures; no account or physical microphone"));atomicWrite(std::filesystem::path(exePath()).parent_path()/L"native-tests.json",std::wstring(report.Stringify()));return pass?0:1;

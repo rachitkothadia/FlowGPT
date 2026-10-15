@@ -10,6 +10,11 @@ static unsigned count = 0;
 void check(bool value, const char* name) { if (!value) throw std::runtime_error(name); ++count; }
 int main() {
     using namespace flow;
+    check(!recorderEnded(true,true,false),"visible composer mic behind an active recorder cannot finish dictation");
+    check(!recorderEnded(true,true,true),"recording takes precedence over transient ready and transcribing controls");
+    check(recorderEnded(false,false,true)&&recorderEnded(true,false,false),"actual recorder end can move to transcription");
+    check(!canInsertTranscript(false,true,false)&&!canInsertTranscript(false,false,false),"missing or pending target only prevents insertion");
+    check(canInsertTranscript(false,false,true)&&!canInsertTranscript(true,false,true),"automatic insertion requires a usable external target");
     Session s;
     check(s.begin(false), "begin"); auto token = s.generation;
     check(!s.begin(true), "rapid start rejected");

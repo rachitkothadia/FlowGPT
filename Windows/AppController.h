@@ -5,13 +5,14 @@
 namespace flow {
 class AppController {
     bool historyReady_=false, queryPending_=false, feedPending_=false, commandPending_=false;
-    bool targetPending_=false,pastePending_=false,cleanupPending_=false,inTick_=false;
+    bool targetPending_=false,targetUsable_=false,pastePending_=false,cleanupPending_=false,inTick_=false,fixture_=false;
+    unsigned probeFailures_=0;
     uint64_t cleanupGeneration_=0;
     double restoreAt_=0;
     int phase_=0;
     bool frozen_=false, stopSent_=false;
     bool pasteDelivered_=false;
-    double startAt_=0, stopAt_=0, stableAt_=0, lastHealth_=0, pasteAt_=0, drainedAt_=0;
+    double startAt_=0, stopAt_=0, stableAt_=0, lastHealth_=0, pasteAt_=0, drainedAt_=0,emptyReadyAt_=0;
     std::wstring stable_;
     Recovery recovery_;
     TranscriptFinalizer finalizer_;
@@ -27,7 +28,8 @@ class AppController {
         browser.call(L"feedAudio",[this,token,id=chunk.id](Json j){if(!session.current(token))return;feedPending_=false;if(j.HasKey(L"error")){fail(L"Captured audio could not reach ChatGPT. No incomplete text was pasted.");return;}if(!microphone.audio.acknowledgeThrough(id)){fail(L"Audio delivery order failed");return;}feed();},wide(base64(chunk.samples.data(),chunk.samples.size()*sizeof(float))));
     }
     void page(Json state) {
-        if(state.HasKey(L"error"))return;
+        if(state.HasKey(L"error")){browser.connected=false;if(busy(session.state)&&++probeFailures_>=2)fail(L"The ChatGPT connection stopped responding. Reconnect in Settings, then retry.");return;}
+        probeFailures_=0;
         browser.needsLogin=state.GetNamedBoolean(L"login",false);
         browser.hasDraft=!state.GetNamedString(L"text",L"").empty();
         bool ready=state.GetNamedBoolean(L"ready",false),temporary=state.GetNamedBoolean(L"temporary",false);
@@ -51,7 +53,7 @@ class AppController {
             if(!state.GetNamedBoolean(L"audioAttached",false)){fail(L"ChatGPT did not attach the buffered microphone");return;}
             command(L"playAudio",[this](Json){phase_=3;recorderMs=(now()-startAt_)*1000;});return;
         }
-        if(phase_==3 && session.state==State::recording && (state.GetNamedBoolean(L"transcribing",false)||ready)) {
+        if(phase_==3 && session.state==State::recording && recorderEnded(ready,state.GetNamedBoolean(L"recording",false),state.GetNamedBoolean(L"transcribing",false))) {
             if(microphone.audio.pending()>0){fail(L"The page stopped before all audio was delivered. Text was not pasted as complete.");return;}finish();
         }
         if(session.state!=State::transcribing||phase_!=3)return;
@@ -64,9 +66,15 @@ class AppController {
         }
         if(stopSent_&&ready&&!state.GetNamedBoolean(L"recording",false)&&!state.GetNamedBoolean(L"transcribing",false)) {
             auto text=std::wstring(state.GetNamedString(L"text",L""));
-            if(text.empty()){fail(L"No speech returned. Nothing was saved or pasted.");return;}
-            if(finalizer_.accept(text,true,false,false,now())&&!commandPending_&&!targetPending_)complete(text);
-        }else finalizer_.reset();
+            if(text.empty()){
+                // React can restore idle controls before committing the transcript.
+                // An empty intermediate DOM snapshot is not a completed empty result.
+                finalizer_.reset();if(emptyReadyAt_==0)emptyReadyAt_=now();
+                if(now()-emptyReadyAt_>=3)fail(L"ChatGPT returned no text. Nothing was saved. Check your connection and microphone, then retry.");return;
+            }
+            emptyReadyAt_=0;
+            if(finalizer_.accept(text,true,false,false,now())&&!commandPending_)complete(text);
+        }else {emptyReadyAt_=0;finalizer_.reset();}
     }
     void complete(const std::wstring& raw) {
         phase_=4;
@@ -82,8 +90,10 @@ class AppController {
                 draftNotice=browser.hasDraft?L" Your ChatGPT draft was kept; clear it before recording again.":L"";
             },raw);
         });
-        session.state=session.local?State::finished:State::inserting;
-        message=session.local?L"Saved to History.":L"Adding your text…";pasteAt_=0;pastePending_=false;notify();
+        const bool insert=canInsertTranscript(session.local,targetPending_,targetUsable_);
+        if(!insert){targetPending_=false;insertion.cancel(owner_);}
+        session.state=insert?State::inserting:State::finished;
+        message=insert?L"Adding your text…":session.local?L"Saved to History.":L"Saved to History. Automatic typing is unavailable in this field. Open History to copy your text.";pasteAt_=0;pastePending_=false;notify();
     }
 public:
     Store store;
@@ -96,7 +106,7 @@ public:
     long lastError=S_OK;
     bool hotkeyReady=false;
     std::function<void()> changed=[]{};
-    explicit AppController(HWND owner,bool fixture=false):owner_(owner),store(fixture?std::filesystem::temp_directory_path()/(L"FlowGPT-UI-"+guid()):dataPath()),browser(store.root()/L"WebView2",fixture) {
+    explicit AppController(HWND owner,bool fixture=false):fixture_(fixture),owner_(owner),store(fixture?std::filesystem::temp_directory_path()/(L"FlowGPT-UI-"+guid()):dataPath()),browser(store.root()/L"WebView2",fixture) {
         try{store.load();historyReady_=true;}catch(...){message=L"Local history/settings could not be read. Existing data was preserved; recording is disabled.";}
         if(fixture&&historyReady_)store.save(L"आज के लिए तीन काम हैं:\n1. Send the project proposal.\n2. Grocery shopping कर लेना.\n3. Review meeting notes.");
         browser.interrupted=[this]{if(busy(session.state))fail(L"Browser interrupted during recording; no incomplete result was pasted.");};
@@ -108,12 +118,12 @@ public:
         if(!historyReady_){message=L"Resolve local history storage before recording";notify();return;}
         if(busy(session.state))return;
         DWORD pid{};GetWindowThreadProcessId(GetForegroundWindow(),&pid);preview=preview||pid==GetCurrentProcessId();
-        session.begin(preview);result.clear();draftNotice.clear();stable_.clear();phase_=0;frozen_=stopSent_=false;queryPending_=feedPending_=commandPending_=false;pasteAt_=0;drainedAt_=0;startAt_=now();recorderMs=0;
+        session.begin(preview);result.clear();draftNotice.clear();stable_.clear();phase_=0;frozen_=stopSent_=false;queryPending_=feedPending_=commandPending_=false;targetUsable_=false;probeFailures_=0;pasteAt_=0;drainedAt_=0;emptyReadyAt_=0;startAt_=now();recorderMs=0;
         finalizer_.reset();
         message=L"Starting microphone…";
         // Capture must not wait for cross-process UI Automation providers.
         textReadyAt=historySavedAt=pasteDeliveredAt=stopAcknowledgedAt=0;
-        microphone.start(std::wstring(store.settings.GetNamedString(L"microphone",L"")));
+        if(fixture_)microphone.startTestSignal();else microphone.start(std::wstring(store.settings.GetNamedString(L"microphone",L"")));
         targetPending_=!preview;if(targetPending_)insertion.beginCapture();
         browser.active=true;browser.hide();notify();
     }
@@ -129,7 +139,7 @@ public:
     void tickImpl() {
         if(restoreAt_&&now()>=restoreAt_){restoreAt_=0;insertion.restoreLater(owner_);}
         browser.tick();
-        if(targetPending_){auto captured=insertion.captured();if(captured.has_value()){targetPending_=false;if(!*captured){fail(L"Click an editable text area, then use your shortcut. This field may not support automatic insertion.");return;}}}
+        if(targetPending_){auto captured=insertion.captured();if(captured.has_value()){targetPending_=false;targetUsable_=*captured;}}
         if(busy(session.state)&&session.state!=State::inserting) {
             if(FAILED(microphone.error())){fail(L"Microphone access failed or device disconnected. Check Windows microphone privacy and selected device.");return;}
             if(session.state==State::starting&&microphone.firstMs()>0){session.state=State::recording;message=L"Recording your voice";notify();}
@@ -154,6 +164,6 @@ public:
         if(inTick_)return;inTick_=true;struct Reset{bool& flag;~Reset(){flag=false;}}reset{inTick_};
         try{tickImpl();}catch(const winrt::hresult_error& e){lastError=e.code().value;try{fail(L"A recording operation failed. Any saved text remains in History.");}catch(...){session.cancel();session.state=State::error;}}catch(...){lastError=E_FAIL;try{fail(L"A recording operation failed. Any saved text remains in History.");}catch(...){session.cancel();session.state=State::error;}}
     }
-    std::wstring diagnostics() const {Json o;o.Insert(L"version",JValue::CreateStringValue(L"1.1.1-windows-preview"));o.Insert(L"architecture",JValue::CreateStringValue(L"x64"));o.Insert(L"state",JValue::CreateNumberValue(int(session.state)));o.Insert(L"hotkeyRegistered",JValue::CreateBooleanValue(hotkeyReady));o.Insert(L"connected",JValue::CreateBooleanValue(browser.connected));o.Insert(L"firstAudioMs",JValue::CreateNumberValue(microphone.firstMs()));o.Insert(L"recorderStartMs",JValue::CreateNumberValue(recorderMs));o.Insert(L"historyEntries",JValue::CreateNumberValue(double(store.entries.size())));o.Insert(L"captureError",JValue::CreateNumberValue(microphone.error()));o.Insert(L"lastError",JValue::CreateNumberValue(lastError));auto elapsed=[](double end,double start){return end>0&&start>0?std::max(0.0,(end-start)*1000):0.0;};o.Insert(L"stopAcknowledgementMs",JValue::CreateNumberValue(elapsed(stopAcknowledgedAt,stopAt_)));o.Insert(L"providerCompletionMs",JValue::CreateNumberValue(elapsed(textReadyAt,stopAt_)));o.Insert(L"historySaveMs",JValue::CreateNumberValue(elapsed(historySavedAt,textReadyAt)));o.Insert(L"insertionMs",JValue::CreateNumberValue(elapsed(pasteDeliveredAt,historySavedAt)));return std::wstring(o.Stringify());}
+    std::wstring diagnostics() const {Json o;o.Insert(L"version",JValue::CreateStringValue(L"1.3.2-windows-preview"));o.Insert(L"recorderPhase",JValue::CreateNumberValue(phase_));o.Insert(L"pendingAudioSamples",JValue::CreateNumberValue(double(microphone.audio.pending())));o.Insert(L"microphoneRunning",JValue::CreateBooleanValue(microphone.running()));o.Insert(L"targetUsable",JValue::CreateBooleanValue(targetUsable_));o.Insert(L"browserReady",JValue::CreateBooleanValue(browser.ready()));o.Insert(L"startupRegistered",JValue::CreateBooleanValue(startupEnabled()));o.Insert(L"architecture",JValue::CreateStringValue(L"x64"));o.Insert(L"state",JValue::CreateNumberValue(int(session.state)));o.Insert(L"hotkeyRegistered",JValue::CreateBooleanValue(hotkeyReady));o.Insert(L"connected",JValue::CreateBooleanValue(browser.connected));o.Insert(L"firstAudioMs",JValue::CreateNumberValue(microphone.firstMs()));o.Insert(L"recorderStartMs",JValue::CreateNumberValue(recorderMs));o.Insert(L"historyEntries",JValue::CreateNumberValue(double(store.entries.size())));o.Insert(L"captureError",JValue::CreateNumberValue(microphone.error()));o.Insert(L"lastError",JValue::CreateNumberValue(lastError));auto elapsed=[](double end,double start){return end>0&&start>0?std::max(0.0,(end-start)*1000):0.0;};o.Insert(L"stopAcknowledgementMs",JValue::CreateNumberValue(elapsed(stopAcknowledgedAt,stopAt_)));o.Insert(L"providerCompletionMs",JValue::CreateNumberValue(elapsed(textReadyAt,stopAt_)));o.Insert(L"historySaveMs",JValue::CreateNumberValue(elapsed(historySavedAt,textReadyAt)));o.Insert(L"insertionMs",JValue::CreateNumberValue(elapsed(pasteDeliveredAt,historySavedAt)));return std::wstring(o.Stringify());}
 };
 }

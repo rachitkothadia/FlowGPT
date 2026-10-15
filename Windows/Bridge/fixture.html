@@ -13,6 +13,7 @@ button('Dictate').onclick = async () => {
   recorded = [];
   recorder.ondataavailable = e => recorded.push(e.data);
   recorder.onstop = async () => {
+    button('Dictate').hidden=false;button('Stop dictation').hidden=true;button('Cancel dictation').hidden=true;
     const context = new AudioContext();
     try {
       const data = await context.decodeAudioData(await new Blob(recorded).arrayBuffer());
@@ -24,10 +25,11 @@ button('Dictate').onclick = async () => {
       window.__fixtureEnergy=power/data.sampleRate;
     } catch { audioSignal=false; }
     await context.close();
+    await new Promise(resolve=>setTimeout(resolve,180));
     document.querySelector('#prompt-textarea').innerText='नमस्ते English मराठी 🎤';
-    button('Dictate').hidden=false;button('Stop dictation').hidden=true;button('Cancel dictation').hidden=true;
   };
-  recorder.start();button('Dictate').hidden=true;button('Stop dictation').hidden=false;button('Cancel dictation').hidden=false;
+  // Real recorder overlays can leave the underlying Dictate control visible.
+  recorder.start();button('Dictate').hidden=false;button('Stop dictation').hidden=false;button('Cancel dictation').hidden=false;
 };
 button('Stop dictation').onclick=()=>recorder.stop();
 button('Cancel dictation').onclick=()=>{if(recorder?.state==='recording')recorder.stop();};

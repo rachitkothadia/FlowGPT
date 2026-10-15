@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.3.2 (Windows)
+
+- Preserve dictation and History when the target field cannot accept automatic typing.
+- Keep recording active when idle composer controls remain visible behind the recorder.
+- Wait for delayed transcript insertion instead of rejecting an intermediate empty composer.
+- Repair missing startup registration on launch and persist startup opt-out through silent updates.
+- Add colored ChatGPT/microphone status badges, native icons, shortcut cards and a direct Copy text action.
+- Show recording failures with a red popup indicator and a silent tray notification.
+- Add full controller capture-to-History fixtures with synthetic audio and delayed provider text.
+
 ## 1.3.1
 
 - Keep declared list items and their explanatory sentences together across sentence boundaries.

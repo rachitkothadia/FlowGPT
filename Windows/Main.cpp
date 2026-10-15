@@ -36,9 +36,10 @@ LONG CALLBACK crashEvidence(EXCEPTION_POINTERS* error){
 }
 struct App : ApplicationT<App,winrt::Microsoft::UI::Xaml::Markup::IXamlMetadataProvider> {
     winrt::Microsoft::UI::Xaml::XamlTypeInfo::XamlControlsXamlMetaDataProvider metadata{nullptr};
-    Window window{nullptr};NavigationView navigation{nullptr};StackPanel content{nullptr};TextBlock status{nullptr},updateStatus{nullptr};
+    Window window{nullptr};NavigationView navigation{nullptr};StackPanel content{nullptr};TextBlock status{nullptr},updateStatus{nullptr},connectionText{nullptr},captureText{nullptr};
+    SymbolIcon connectionIcon{nullptr},captureIcon{nullptr};Border connectionBadge{nullptr},captureBadge{nullptr};
     Button updateAction{nullptr},primaryAction{nullptr};
-    double nextUpdateCheck=0;std::wstring announcedUpdate;
+    double nextUpdateCheck=0;std::wstring announcedUpdate,startupNotice,noticePage=L"About";uint64_t noticedSession=0;
     DispatcherTimer timer{nullptr};HWND hwnd{};NOTIFYICONDATAW tray{};HICON icon{};flow::Hud hud;flow::Updates updates;
     std::unique_ptr<flow::AppController> controller;
     std::wstring page=L"Home";bool background=false,preview=false,smoke=false,quitting=false,trayReady=false,tickActive=false;unsigned hotkeyChoice=0;double launched=flow::now();
@@ -62,6 +63,14 @@ struct App : ApplicationT<App,winrt::Microsoft::UI::Xaml::Markup::IXamlMetadataP
     }
     static TextBlock heading(const std::wstring& value,double size=28){auto t=label(value,size);t.FontWeight(winrt::Windows::UI::Text::FontWeight{600});return t;}
     static SolidColorBrush green(){return SolidColorBrush(winrt::Windows::UI::Color{255,84,139,120});}
+    static SolidColorBrush tint(BYTE r,BYTE g,BYTE b,BYTE alpha=255){return SolidColorBrush(winrt::Windows::UI::Color{alpha,r,g,b});}
+    static Border card(UIElement const& child){Border b;b.CornerRadius({10,10,10,10});b.Padding({20,18,20,18});b.BorderThickness({1,1,1,1});b.BorderBrush(tint(128,128,128,35));b.Background(tint(128,128,128,8));b.Child(child);return b;}
+    static StackPanel sectionTitle(Symbol symbol,const std::wstring& title){StackPanel p;p.Orientation(Orientation::Horizontal);p.Spacing(10);SymbolIcon icon;icon.Symbol(symbol);icon.Foreground(green());p.Children().Append(icon);p.Children().Append(heading(title,17));return p;}
+    void connectionBadges(){
+        StackPanel row;row.Orientation(Orientation::Horizontal);row.Spacing(10);
+        auto badge=[&](Border& border,SymbolIcon& icon,TextBlock& text){StackPanel p;p.Orientation(Orientation::Horizontal);p.Spacing(7);icon=SymbolIcon();icon.Width(16);icon.Height(16);text=label(L"",12);p.Children().Append(icon);p.Children().Append(text);border=Border();border.CornerRadius({6,6,6,6});border.Padding({10,6,10,6});border.Child(p);row.Children().Append(border);};
+        badge(connectionBadge,connectionIcon,connectionText);badge(captureBadge,captureIcon,captureText);content.Children().Append(row);
+    }
     template<typename F>Button button(const std::wstring& text,F fn,bool accent=false){
         Button b;b.Content(box_value(text));b.Padding({16,10,16,10});if(accent){b.Background(green());b.Foreground(SolidColorBrush(winrt::Windows::UI::Color{255,255,255,255}));}
         b.Click([this,fn](auto&&,auto&&){if(!quitting&&controller)safely(fn);});return b;
@@ -96,14 +105,16 @@ struct App : ApplicationT<App,winrt::Microsoft::UI::Xaml::Markup::IXamlMetadataP
         ScrollViewer scroll;content=StackPanel();content.Padding({30,24,30,24});content.Spacing(16);content.MaxWidth(760);scroll.Content(content);navigation.Content(scroll);window.Content(navigation);
         try{window.SystemBackdrop(MicaBackdrop());}catch(...){}
         controller=std::make_unique<flow::AppController>(hwnd,preview);
+        if(!preview){try{flow::StartupRegistration().synchronize();}catch(...){startupNotice=L"Startup could not be registered. Open Settings to retry.";}}
         controller->changed=[this]{if(quitting)return;render();hud.update(controller->session.state,controller->microphone.audio.level());};
         hud.finish=[this]{safely([this]{if(controller)controller->finish();});};
+        hud.showError=[this]{safely([this]{show();navigation.SelectedItem(navigation.MenuItems().GetAt(0));});};
         hotkeyChoice=unsigned(controller->store.settings.GetNamedNumber(L"shortcut",0));if(hotkeyChoice>3)hotkeyChoice=0;registerHotkey();
         auto appearance=controller->store.settings.GetNamedString(L"appearance",L"System");navigation.RequestedTheme(appearance==L"Dark"?ElementTheme::Dark:appearance==L"Light"?ElementTheme::Light:ElementTheme::Default);
         addTray();navigation.SelectedItem(navigation.MenuItems().GetAt(0));
         timer=DispatcherTimer();timer.Interval(std::chrono::milliseconds(50));timer.Tick([this](auto&&,auto&&){
             if(tickActive)return;tickActive=true;struct Reset{bool& value;~Reset(){value=false;}}reset{tickActive};
-            safely([this]{if(!controller||quitting)return;controller->tick();renderStatus();hud.update(controller->session.state,controller->microphone.audio.level());renderUpdates();automaticUpdates();if(smoke&&flow::now()-launched>12)verifyUI();});
+            safely([this]{if(!controller||quitting)return;controller->tick();renderStatus();hud.update(controller->session.state,controller->microphone.audio.level());dictationNotice();renderUpdates();automaticUpdates();if(smoke&&flow::now()-launched>12)verifyUI();});
         });timer.Start();render();window.Activate();stage(L"Window activated");if(background)hide();
     }
     void registerHotkey(){
@@ -117,9 +128,17 @@ struct App : ApplicationT<App,winrt::Microsoft::UI::Xaml::Markup::IXamlMetadataP
             NOTIFYICONDATAW notice=tray;notice.uFlags=NIF_INFO;notice.dwInfoFlags=NIIF_INFO|NIIF_NOSOUND;
             wcscpy_s(notice.szInfoTitle,L"FlowGPT update available");auto text=L"Version "+state.version+L" is ready. Click to download and update, or continue working.";
             wcsncpy_s(notice.szInfo,text.c_str(),_TRUNCATE);
-            if(Shell_NotifyIconW(NIM_MODIFY,&notice))announcedUpdate=state.version;
+            noticePage=L"About";if(Shell_NotifyIconW(NIM_MODIFY,&notice))announcedUpdate=state.version;
         }
         if(flow::now()>=nextUpdateCheck){nextUpdateCheck=flow::now()+6*60*60;updates.check();}
+    }
+    void dictationNotice(){
+        auto& c=*controller;auto state=c.session.state;
+        if(preview||!trayReady||flow::busy(state)||c.session.generation==noticedSession)return;
+        bool error=state==flow::State::error;bool saved=state==flow::State::finished&&!c.session.local&&!c.result.empty();
+        if(!error&&!saved)return;noticedSession=c.session.generation;noticePage=L"Home";
+        NOTIFYICONDATAW n=tray;n.uFlags=NIF_INFO;n.dwInfoFlags=(error?NIIF_WARNING:NIIF_INFO)|NIIF_NOSOUND;
+        wcscpy_s(n.szInfoTitle,error?L"FlowGPT needs attention":L"Your text is saved");wcsncpy_s(n.szInfo,c.message.c_str(),_TRUNCATE);Shell_NotifyIconW(NIM_MODIFY,&n);
     }
     void finishUIReport(){
         flow::Json report;report.Insert(L"checks",uiChecks);bool pass=true;for(auto p:uiChecks)pass=pass&&p.Value().GetBoolean();report.Insert(L"passed",flow::JValue::CreateBooleanValue(pass));
@@ -131,6 +150,8 @@ struct App : ApplicationT<App,winrt::Microsoft::UI::Xaml::Markup::IXamlMetadataP
         if(smokePhase==0){
             check(background?L"startupWindowHidden":L"nativeWinUIWindowVisible",background?!IsWindowVisible(hwnd):IsWindowVisible(hwnd)!=FALSE);
             check(L"historyFixtureLoaded",controller->store.entries.size()==1);check(L"shortcutRegisteredInApp",controller->hotkeyReady);check(L"trayIconRegistered",trayReady);
+            controller->browser.connected=true;renderStatus();check(L"connectedBadgeIsGreen",connectionText&&connectionText.Text()==L"ChatGPT connected"&&connectionIcon.Symbol()==Symbol::Accept);
+            controller->browser.connected=false;controller->browser.needsLogin=true;renderStatus();check(L"signedOutBadgeIsExplicit",connectionText&&connectionText.Text()==L"Sign in required");controller->browser.needsLogin=false;
             navigation.SelectedItem(navigation.MenuItems().GetAt(1));next(1);return;
         }
         if(smokePhase==1){
@@ -164,7 +185,7 @@ struct App : ApplicationT<App,winrt::Microsoft::UI::Xaml::Markup::IXamlMetadataP
         if(m==WM_POWERBROADCAST&&self->controller&&w==PBT_APMSUSPEND){self->safely([self]{if(self->busy())self->controller->cancel();});return TRUE;}
         if(m==TrayMessage){
             self->safely([&]{UINT event=LOWORD(l);if(event==WM_LBUTTONUP||event==NIN_SELECT){self->show();return;}
-                if(event==NIN_BALLOONUSERCLICK){if(!self->busy()){self->show();self->navigation.SelectedItem(self->navigation.MenuItems().GetAt(3));}return;}
+                if(event==NIN_BALLOONUSERCLICK){if(!self->busy()){self->show();self->navigation.SelectedItem(self->navigation.MenuItems().GetAt(self->noticePage==L"Home"?0:3));}return;}
                 if(event==WM_CONTEXTMENU||event==WM_RBUTTONUP){HMENU menu=CreatePopupMenu();AppendMenuW(menu,MF_STRING,1,L"Open FlowGPT");AppendMenuW(menu,MF_STRING,2,L"Start / finish dictation");AppendMenuW(menu,MF_STRING,3,L"Connect ChatGPT");AppendMenuW(menu,MF_STRING,4,L"Quit FlowGPT");POINT p{};GetCursorPos(&p);SetForegroundWindow(h);int command=TrackPopupMenu(menu,TPM_RETURNCMD|TPM_RIGHTBUTTON,p.x,p.y,0,h,nullptr);DestroyMenu(menu);
                     if(command==1)self->show();if(command==2&&self->controller)self->controller->begin(true);if(command==3&&self->controller)self->controller->browser.show();if(command==4)self->quit();}});
             return 0;
@@ -175,27 +196,34 @@ struct App : ApplicationT<App,winrt::Microsoft::UI::Xaml::Markup::IXamlMetadataP
     void show(){window.AppWindow().Show();window.Activate();render();}
     void quit(){if(quitting)return;quitting=true;if(timer)timer.Stop();hud.update(flow::State::finished,0);if(controller){controller->cancel();controller.reset();}UnregisterHotKey(hwnd,1);Shell_NotifyIconW(NIM_DELETE,&tray);Exit();}
     void renderStatus(){if(!controller||!status)return;auto state=controller->session.state;status.Text(flow::busy(state)||state!=flow::State::idle?controller->message:controller->browser.status);
+        status.Foreground(state==flow::State::error?tint(206,90,73):tint(128,128,128));
+        if(connectionText){bool ready=controller->browser.connected;bool login=controller->browser.needsLogin;auto color=ready?tint(67,156,109):login?tint(190,117,48):tint(112,142,189);
+            connectionText.Text(ready?L"ChatGPT connected":login?L"Sign in required":L"Connecting to ChatGPT");connectionText.Foreground(color);connectionIcon.Foreground(color);connectionIcon.Symbol(ready?Symbol::Accept:login?Symbol::Contact:Symbol::Sync);connectionBadge.Background(ready?tint(67,156,109,28):login?tint(190,117,48,28):tint(112,142,189,28));}
+        if(captureText){bool on=controller->microphone.running(),error=FAILED(controller->microphone.error());captureIcon.Symbol(Symbol::Microphone);captureText.Text(error?L"Check microphone":on?L"Microphone on":L"Microphone idle");auto color=error?tint(206,90,73):on?tint(67,156,109):tint(128,128,128);captureIcon.Foreground(color);captureText.Foreground(color);captureBadge.Background(tint(128,128,128,16));}
         if(primaryAction){bool recording=state==flow::State::starting||state==flow::State::recording;primaryAction.Content(box_value(recording?L"Finish dictation":controller->browser.connected?L"Try dictation":L"Connect ChatGPT"));primaryAction.IsEnabled(!busy()||recording);}}
     void copy(const std::wstring& text){
         if(!OpenClipboard(hwnd))return;HGLOBAL memory=GlobalAlloc(GMEM_MOVEABLE,(text.size()+1)*sizeof(wchar_t));
         if(memory){void* p=GlobalLock(memory);if(p){memcpy(p,text.c_str(),(text.size()+1)*sizeof(wchar_t));GlobalUnlock(memory);EmptyClipboard();if(!SetClipboardData(CF_UNICODETEXT,memory))GlobalFree(memory);}else GlobalFree(memory);}CloseClipboard();
     }
     void render(){
-        if(!content||!controller||quitting)return;content.Children().Clear();status=nullptr;updateStatus=nullptr;updateAction=nullptr;primaryAction=nullptr;searchBox=nullptr;historyList=nullptr;
+        if(!content||!controller||quitting)return;content.Children().Clear();status=nullptr;updateStatus=nullptr;updateAction=nullptr;primaryAction=nullptr;searchBox=nullptr;historyList=nullptr;connectionText=nullptr;captureText=nullptr;
         content.Children().Append(heading(page==L"Home"?L"Dictate, then keep going.":page==L"History"?L"Your history":page==L"Settings"?L"Settings":L"About FlowGPT"));
+        connectionBadges();
         status=label(controller->message,14,true);content.Children().Append(status);renderStatus();
         if(page==L"Home"){
-            auto shortcut=heading(shortcutText(),25);shortcut.Margin({0,12,0,0});content.Children().Append(shortcut);
-            content.Children().Append(label(L"Press once to start. Press again to finish.",15,true));
+            StackPanel instructions;instructions.Spacing(12);instructions.Children().Append(sectionTitle(Symbol::Keyboard,L"Your dictation shortcut"));
+            auto shortcut=heading(shortcutText(),22);instructions.Children().Append(shortcut);
+            instructions.Children().Append(label(L"Press once to start. Press again to finish.",15,true));content.Children().Append(card(instructions));
             if(!controller->hotkeyReady)content.Children().Append(label(L"This shortcut is unavailable. Choose another in Settings."));
             bool recording=controller->session.state==flow::State::starting||controller->session.state==flow::State::recording;
             primaryAction=button(recording?L"Finish dictation":controller->browser.connected?L"Try dictation":L"Connect ChatGPT",[this]{if(controller->browser.connected||busy())controller->begin(true);else controller->browser.show();},true);primaryAction.IsEnabled(!busy()||recording);content.Children().Append(primaryAction);
             content.Children().Append(label(L"To write in another app, click its text area and use your shortcut. FlowGPT stays near the clock when you close this window.",14,true));
             if(busy())content.Children().Append(button(L"Cancel",[this]{controller->cancel();}));
-            content.Children().Append(heading(L"Last dictation",17));
+            if(!startupNotice.empty())content.Children().Append(label(startupNotice,13));
+            content.Children().Append(sectionTitle(Symbol::Clock,L"Last dictation"));
             if(controller->store.entries.empty())content.Children().Append(label(L"Your first dictation will appear here.",14,true));
             else{auto text=label(controller->store.entries.front().text,15);text.MaxLines(5);text.TextTrimming(TextTrimming::CharacterEllipsis);text.IsTextSelectionEnabled(true);content.Children().Append(text);
-                content.Children().Append(button(L"View history",[this]{navigation.SelectedItem(navigation.MenuItems().GetAt(1));}));}
+                StackPanel actions;actions.Orientation(Orientation::Horizontal);actions.Spacing(8);actions.Children().Append(button(L"Copy text",[this]{copy(controller->store.entries.front().text);}));actions.Children().Append(button(L"View history",[this]{navigation.SelectedItem(navigation.MenuItems().GetAt(1));}));content.Children().Append(actions);}
         }else if(page==L"History"){
             searchBox=TextBox();searchBox.PlaceholderText(L"Search your dictations");content.Children().Append(searchBox);historyList=StackPanel();historyList.Spacing(12);content.Children().Append(historyList);populateHistory(historyList,L"");
             auto search=searchBox;auto list=historyList;search.TextChanged([this,search,list](auto&&,auto&&){safely([&]{populateHistory(list,std::wstring(search.Text()));});});
@@ -203,7 +231,7 @@ struct App : ApplicationT<App,winrt::Microsoft::UI::Xaml::Markup::IXamlMetadataP
         }else if(page==L"Settings")settings();else about();
     }
     void addEntry(const flow::Entry& e,StackPanel list){
-        Border card;card.CornerRadius({10});card.Padding({16,12,16,12});StackPanel inner;inner.Spacing(10);inner.Children().Append(label(e.date,12,true));
+        Border card;card.CornerRadius({10,10,10,10});card.Padding({16,12,16,12});StackPanel inner;inner.Spacing(10);inner.Children().Append(label(e.date,12,true));
         TextBox text;text.Text(e.text);text.IsReadOnly(true);text.AcceptsReturn(true);text.TextWrapping(TextWrapping::Wrap);text.MinHeight(90);text.MaxHeight(240);ScrollViewer::SetVerticalScrollBarVisibility(text,ScrollBarVisibility::Auto);inner.Children().Append(text);
         StackPanel actions;actions.Orientation(Orientation::Horizontal);actions.Spacing(8);actions.Children().Append(button(L"Copy",[this,e]{copy(e.text);}));
         if(!e.raw.empty()&&e.raw!=e.text)actions.Children().Append(button(L"Copy original",[this,e]{copy(e.raw);}));
@@ -229,7 +257,9 @@ struct App : ApplicationT<App,winrt::Microsoft::UI::Xaml::Markup::IXamlMetadataP
         content.Children().Append(button(L"Microphone permissions",[]{ShellExecuteW(nullptr,L"open",L"ms-settings:privacy-microphone",nullptr,nullptr,SW_SHOWNORMAL);}));
         content.Children().Append(heading(L"Shortcut",17));ComboBox shortcut;for(auto s:{L"Ctrl + Alt + Space",L"Ctrl + Alt + D",L"Ctrl + F8",L"Ctrl + Space"})shortcut.Items().Append(box_value(s));shortcut.SelectedIndex(int(hotkeyChoice));shortcut.IsEnabled(!busy());
         shortcut.SelectionChanged([this,shortcut](auto&&,auto&&){safely([&]{if(shortcut.SelectedIndex()<0||busy())return;hotkeyChoice=unsigned(shortcut.SelectedIndex());registerHotkey();controller->store.setting(L"shortcut",flow::JValue::CreateNumberValue(hotkeyChoice));renderStatus();});});content.Children().Append(shortcut);
-        ToggleSwitch startup;startup.Header(box_value(L"Start FlowGPT when I sign in"));startup.IsOn(flow::startupEnabled());startup.Toggled([this,startup](auto&&,auto&&){safely([&]{flow::startup(startup.IsOn());});});content.Children().Append(startup);
+        content.Children().Append(sectionTitle(Symbol::Play,L"Start with Windows"));
+        ToggleSwitch startup;startup.Header(box_value(L"Start FlowGPT in the tray when I sign in"));startup.IsOn(flow::startupEnabled());startup.Toggled([this,startup](auto&&,auto&&){safely([&]{flow::startup(startup.IsOn());startupNotice.clear();});});content.Children().Append(startup);
+        content.Children().Append(label(L"Your choice stays saved through updates. If Windows disables startup, enable FlowGPT in Windows startup settings.",13,true));
         content.Children().Append(button(L"Windows startup settings",[]{ShellExecuteW(nullptr,L"open",L"ms-settings:startupapps",nullptr,nullptr,SW_SHOWNORMAL);}));
         ToggleSwitch format;format.Header(box_value(L"Format lists and currency amounts"));format.IsOn(controller->store.settings.GetNamedBoolean(L"readableFormatting",true));format.Toggled([this,format](auto&&,auto&&){safely([&]{controller->store.setting(L"readableFormatting",flow::JValue::CreateBooleanValue(format.IsOn()));});});content.Children().Append(format);
         content.Children().Append(label(L"Preserves words, repetitions, languages and scripts. The original text stays in History.",13,true));
@@ -237,7 +267,7 @@ struct App : ApplicationT<App,winrt::Microsoft::UI::Xaml::Markup::IXamlMetadataP
         theme.SelectionChanged([this,theme](auto&&,auto&&){safely([&]{int index=theme.SelectedIndex();if(index<0)return;navigation.RequestedTheme(index==1?ElementTheme::Light:index==2?ElementTheme::Dark:ElementTheme::Default);controller->store.setting(L"appearance",flow::JValue::CreateStringValue(index==1?L"Light":index==2?L"Dark":L"System"));});});content.Children().Append(theme);
     }
     void about(){
-        content.Children().Append(heading(L"Version 1.3.1 · Windows preview",18));
+        content.Children().Append(heading(L"Version 1.3.2 · Windows preview",18));
         content.Children().Append(label(L"Speak into your ChatGPT connection. Your dictations are saved on this computer.",14,true));
         content.Children().Append(heading(L"Updates",17));updateStatus=label(updates.state().message);content.Children().Append(updateStatus);
         updateAction=button(L"Check for updates",[this]{auto state=updates.state();if(busy())return;if(state.downloaded){if(updates.install(hwnd))quit();}else if(state.available)updates.download();else updates.check();});content.Children().Append(updateAction);renderUpdates();

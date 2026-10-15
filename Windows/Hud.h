@@ -13,7 +13,8 @@ inline HICON waveformIcon() {
 class Hud {
     HWND window_{};
     ULONG_PTR graphicsToken_{};
-    bool active_=false,processing_=false;
+    bool active_=false,processing_=false,error_=false;
+    double errorUntil_=0;
     double targetLevel_=0,level_=0;
     HMONITOR monitor_{};
     static LRESULT CALLBACK procedure(HWND h,UINT m,WPARAM w,LPARAM l){
@@ -21,7 +22,7 @@ class Hud {
         if(m==WM_MOUSEACTIVATE)return MA_NOACTIVATE;
         if(self){
             try{
-                if(m==WM_LBUTTONUP){if(self->finish)self->finish();return 0;}
+                if(m==WM_LBUTTONUP){if(self->error_){if(self->showError)self->showError();}else if(self->finish)self->finish();return 0;}
                 if(m==WM_TIMER){self->level_+=(self->targetLevel_-self->level_)*0.22;self->draw();return 0;}
                 if(m==WM_DISPLAYCHANGE||m==WM_DPICHANGED){self->position();self->draw();return 0;}
                 if(m==WM_PAINT){PAINTSTRUCT p;BeginPaint(h,&p);EndPaint(h,&p);return 0;}
@@ -53,9 +54,10 @@ class Hud {
             Gdiplus::GraphicsPath shape;shape.AddArc(1.0f,1.0f,diameter,diameter,90.0f,180.0f);shape.AddArc(float(width)-diameter-1.0f,1.0f,diameter,diameter,270.0f,180.0f);shape.CloseFigure();
             Gdiplus::LinearGradientBrush background(Gdiplus::PointF(0,0),Gdiplus::PointF(0,float(height)),Gdiplus::Color(245,32,38,35),Gdiplus::Color(245,16,20,18));
             g.FillPath(&background,&shape);Gdiplus::Pen edge(Gdiplus::Color(55,210,231,221),1.0f);g.DrawPath(&edge,&shape);
-            Gdiplus::Pen ink(Gdiplus::Color(235,230,241,235),1.8f*scale);ink.SetStartCap(Gdiplus::LineCapRound);ink.SetEndCap(Gdiplus::LineCapRound);
+            Gdiplus::Pen ink(error_?Gdiplus::Color(255,242,124,109):Gdiplus::Color(235,230,241,235),1.8f*scale);ink.SetStartCap(Gdiplus::LineCapRound);ink.SetEndCap(Gdiplus::LineCapRound);
             float x=21*scale,y=float(height)/2;
-            if(processing_)g.DrawArc(&ink,x-6*scale,y-6*scale,12*scale,12*scale,float(fmod(now()*310,360)),270.0f);
+            if(error_){g.DrawLine(&ink,x,y-7*scale,x,y+2*scale);g.DrawLine(&ink,x,y+7*scale,x,y+7.2f*scale);}
+            else if(processing_)g.DrawArc(&ink,x-6*scale,y-6*scale,12*scale,12*scale,float(fmod(now()*310,360)),270.0f);
             else{
                 Gdiplus::GraphicsPath mic;mic.AddArc(x-3.3f*scale,y-7*scale,6.6f*scale,6.6f*scale,180,180);mic.AddArc(x-3.3f*scale,y-2*scale,6.6f*scale,6.6f*scale,0,180);mic.CloseFigure();g.DrawPath(&ink,&mic);
                 g.DrawArc(&ink,x-6*scale,y-5*scale,12*scale,12*scale,0,180);g.DrawLine(&ink,x,y+7*scale,x,y+10*scale);
@@ -69,6 +71,7 @@ class Hud {
     }
 public:
     std::function<void()> finish;
+    std::function<void()> showError;
     Hud(){
         Gdiplus::GdiplusStartupInput input;Gdiplus::GdiplusStartup(&graphicsToken_,&input,nullptr);
         WNDCLASSW c{};c.lpfnWndProc=procedure;c.hInstance=GetModuleHandleW(nullptr);c.lpszClassName=L"FlowGPTHud";c.hCursor=LoadCursorW(nullptr,IDC_ARROW);RegisterClassW(&c);
@@ -77,7 +80,9 @@ public:
     }
     ~Hud(){KillTimer(window_,1);DestroyWindow(window_);if(graphicsToken_)Gdiplus::GdiplusShutdown(graphicsToken_);}
     void update(State state,double level){
-        if(!busy(state)){active_=false;monitor_=nullptr;KillTimer(window_,1);ShowWindow(window_,SW_HIDE);return;}
+        if(state==State::error&&!error_)errorUntil_=now()+4;
+        error_=state==State::error;
+        if(!busy(state)&&(!error_||now()>=errorUntil_)){active_=false;monitor_=nullptr;KillTimer(window_,1);ShowWindow(window_,SW_HIDE);return;}
         processing_=state!=State::recording;targetLevel_=std::clamp(level,0.0,1.0);
         if(!active_){active_=true;level_=targetLevel_;monitor_=MonitorFromWindow(GetForegroundWindow(),MONITOR_DEFAULTTONEAREST);position();draw();ShowWindow(window_,SW_SHOWNOACTIVATE);SetTimer(window_,1,33,nullptr);}
     }

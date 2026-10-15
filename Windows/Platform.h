@@ -22,6 +22,7 @@
 #include <atomic>
 #include <functional>
 #include <chrono>
+#include <optional>
 #include "Core.h"
 
 using Microsoft::WRL::ComPtr;
@@ -90,6 +91,16 @@ public:
     bool running() const { return running_; }
     long error() const { return error_; }
     double firstMs() const { return first_>0?(first_-began)*1000:0; }
+    // Only isolated --self-test/--ui-smoke/--design-preview controllers use this source.
+    void startTestSignal(){
+        stop();audio.reset();ResetEvent(stop_);error_=S_OK;first_=0;began=now();running_=true;
+        thread_=std::thread([this]{size_t frame=0;std::vector<float> samples(160);
+            while(WaitForSingleObject(stop_,10)==WAIT_TIMEOUT){
+                for(auto& v:samples)v=float(0.3*std::sin(double(frame++)*2*3.141592653589793*440/16000));
+                if(first_==0)first_=now();if(!audio.push(samples.data(),samples.size()))break;
+            }audio.freeze();running_=false;
+        });
+    }
     void start(std::wstring device) {
         stop(); audio.reset(); ResetEvent(stop_); error_=S_OK; first_=0; began=now(); running_=true;
         thread_=std::thread([this,device] {
@@ -130,12 +141,26 @@ public:
     }
     void stop() { SetEvent(stop_); if(thread_.joinable()) thread_.join();audio.freeze();running_=false; }
 };
-inline bool startupEnabled() { HKEY key{};if(RegOpenKeyExW(HKEY_CURRENT_USER,L"Software\\Microsoft\\Windows\\CurrentVersion\\Run",0,KEY_READ,&key)!=ERROR_SUCCESS)return false;
+class StartupRegistration {
+    std::wstring runKey_,preferenceKey_,executable_;
+public:
+    explicit StartupRegistration(std::wstring runKey=L"Software\\Microsoft\\Windows\\CurrentVersion\\Run",std::wstring preferenceKey=L"Software\\FlowGPT\\Startup",std::wstring executable=exePath()):runKey_(std::move(runKey)),preferenceKey_(std::move(preferenceKey)),executable_(std::move(executable)){}
+    bool enabled()const{HKEY key{};if(RegOpenKeyExW(HKEY_CURRENT_USER,runKey_.c_str(),0,KEY_READ,&key)!=ERROR_SUCCESS)return false;
     wchar_t value[32768]{};DWORD bytes=sizeof(value),type{};LONG result=RegQueryValueExW(key,L"FlowGPT",nullptr,&type,reinterpret_cast<BYTE*>(value),&bytes);RegCloseKey(key);
-    return result==ERROR_SUCCESS&&type==REG_SZ&&bytes<=sizeof(value)&&bytes>=sizeof(wchar_t)&&value[bytes/sizeof(wchar_t)-1]==0&&std::wstring(value)==L"\""+exePath()+L"\" --background"; }
-inline void startup(bool enable) { HKEY key{};winrt::check_win32(RegCreateKeyExW(HKEY_CURRENT_USER,L"Software\\Microsoft\\Windows\\CurrentVersion\\Run",0,nullptr,0,KEY_WRITE,nullptr,&key,nullptr)); LONG hr;
-    if(enable){auto command=L"\""+exePath()+L"\" --background";hr=RegSetValueExW(key,L"FlowGPT",0,REG_SZ,reinterpret_cast<const BYTE*>(command.c_str()),DWORD((command.size()+1)*2));}
+    return result==ERROR_SUCCESS&&type==REG_SZ&&bytes<=sizeof(value)&&bytes>=sizeof(wchar_t)&&value[bytes/sizeof(wchar_t)-1]==0&&std::wstring(value)==L"\""+executable_+L"\" --background"; }
+    std::optional<bool> preference()const{HKEY key{};if(RegOpenKeyExW(HKEY_CURRENT_USER,preferenceKey_.c_str(),0,KEY_READ,&key)!=ERROR_SUCCESS)return{};
+        DWORD type{},value{},bytes=sizeof(value);LONG result=RegQueryValueExW(key,L"StartAtLogin",nullptr,&type,reinterpret_cast<BYTE*>(&value),&bytes);RegCloseKey(key);
+        if(result!=ERROR_SUCCESS||type!=REG_DWORD||bytes!=sizeof(value)||value>1)return{};return value!=0;
+    }
+    void set(bool enable)const{HKEY key{};winrt::check_win32(RegCreateKeyExW(HKEY_CURRENT_USER,runKey_.c_str(),0,nullptr,0,KEY_WRITE,nullptr,&key,nullptr)); LONG hr;
+    if(enable){auto command=L"\""+executable_+L"\" --background";hr=RegSetValueExW(key,L"FlowGPT",0,REG_SZ,reinterpret_cast<const BYTE*>(command.c_str()),DWORD((command.size()+1)*sizeof(wchar_t)));}
     else{hr=RegDeleteValueW(key,L"FlowGPT");if(hr==ERROR_FILE_NOT_FOUND)hr=ERROR_SUCCESS;}RegCloseKey(key);winrt::check_win32(hr);
-}
+    winrt::check_win32(RegCreateKeyExW(HKEY_CURRENT_USER,preferenceKey_.c_str(),0,nullptr,0,KEY_WRITE,nullptr,&key,nullptr));DWORD choice=enable?1:0;
+    hr=RegSetValueExW(key,L"StartAtLogin",0,REG_DWORD,reinterpret_cast<const BYTE*>(&choice),sizeof(choice));RegCloseKey(key);winrt::check_win32(hr);
+    }
+    void synchronize()const{auto desired=preference();if(!desired.has_value()||enabled()!=*desired)set(desired.value_or(true));}
+};
+inline bool startupEnabled(){return StartupRegistration().enabled();}
+inline void startup(bool enable){StartupRegistration().set(enable);}
 }
 #include "Insertion.h"

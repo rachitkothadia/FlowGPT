@@ -1,7 +1,7 @@
 [Setup]
 AppId={{C0DD7357-60AA-4124-B232-912E1B8F94B4}
 AppName=FlowGPT
-AppVersion=1.3.1
+AppVersion=1.3.2
 AppPublisher=Rachit Kothadia
 AppPublisherURL=https://github.com/rachitkothadia/FlowGPT
 DefaultDirName={localappdata}\Programs\FlowGPT
@@ -11,7 +11,7 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0.22000
 OutputDir=..\..\release\windows
-OutputBaseFilename=FlowGPT-1.3.1-Windows-x64-Setup
+OutputBaseFilename=FlowGPT-1.3.2-Windows-x64-Setup
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
@@ -42,13 +42,31 @@ Name: desktopicon; Description: "Create a desktop shortcut"; Flags: unchecked
 Name: startup; Description: "Start FlowGPT in the tray when I sign in"
 
 [Registry]
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "FlowGPT"; ValueData: """{app}\FlowGPT.exe"" --background"; Tasks: startup; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "FlowGPT"; ValueData: """{app}\FlowGPT.exe"" --background"; Check: StartAtLoginSelected; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: none; ValueName: "FlowGPT"; Check: StartAtLoginNotSelected; Flags: deletevalue
+Root: HKCU; Subkey: "Software\FlowGPT\Startup"; ValueType: dword; ValueName: "StartAtLogin"; ValueData: "1"; Check: StartAtLoginSelected
+Root: HKCU; Subkey: "Software\FlowGPT\Startup"; ValueType: dword; ValueName: "StartAtLogin"; ValueData: "0"; Check: StartAtLoginNotSelected
 
 [Run]
 Filename: "{tmp}\WebView2Bootstrapper.exe"; Parameters: "/silent /install"; StatusMsg: "Checking Microsoft Edge WebView2 Runtime…"; Flags: waituntilterminated
 Filename: "{app}\FlowGPT.exe"; Description: "Open FlowGPT"; Flags: nowait postinstall skipifsilent
 
 [Code]
+function StartAtLoginSelected: Boolean;
+var
+  PreviousChoice: Cardinal;
+begin
+  if WizardSilent and RegQueryDWordValue(HKCU, 'Software\FlowGPT\Startup', 'StartAtLogin', PreviousChoice) then
+    Result := PreviousChoice <> 0
+  else
+    Result := WizardIsTaskSelected('startup');
+end;
+
+function StartAtLoginNotSelected: Boolean;
+begin
+  Result := not StartAtLoginSelected;
+end;
+
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
   if CurUninstallStep = usPostUninstall then

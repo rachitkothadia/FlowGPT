@@ -10,6 +10,9 @@
 namespace flow {
 enum class State { idle, starting, recording, transcribing, inserting, finished, attempted, error, cancelled };
 inline bool busy(State s) { return s == State::starting || s == State::recording || s == State::transcribing || s == State::inserting; }
+// A background composer can keep its Dictate button visible behind the recorder.
+inline bool recorderEnded(bool ready,bool recording,bool transcribing){return !recording&&(ready||transcribing);}
+inline bool canInsertTranscript(bool local,bool targetPending,bool targetUsable){return !local&&!targetPending&&targetUsable;}
 struct Session {
     State state = State::idle;
     uint64_t generation = 0;
