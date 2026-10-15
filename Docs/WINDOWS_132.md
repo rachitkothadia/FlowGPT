@@ -31,4 +31,17 @@ Portable tests cover the recorder-state precedence and insertion eligibility rul
 
 Registry tests use disposable test keys. Installer tests cover registration without a forced startup task, opt-out preservation, opted-in repair, upgrade data preservation and background lifecycle. The UI suite checks connection badges, navigation, themes, close-to-tray and shortcuts. These are software/fixture checks; physical microphone/account behavior on the user's laptop and a real sign-out/sign-in cycle require device verification.
 
-Packaged release evidence is appended after the Windows build completes.
+## Release verification
+
+Application source: `bb2d7e2d7f96f51f139cc130ff6c6643527456bb`.
+
+- 582 portable C++ checks passed, including recorder-state precedence and target-eligibility cases.
+- The [Windows build, native/UI suites and installer lifecycle job passed](https://github.com/rachitkothadia/FlowGPT/actions/runs/38689062201).
+- Full-controller synthetic-audio tests cover a visible underlying Dictate button, delayed composer text, exact mixed-script History saving, repeat recording after cleanup and recovery when no insertion target is available.
+- Startup tests cover registration repair, a changed executable path, persistent opt-out, silent-upgrade opt-out preservation and silent-upgrade registration repair.
+
+Reports: [native application and browser](windows-native-fixtures-132.json), [WinUI interface](windows-ui-fixtures-132.json), [installer lifecycle](windows-installer-fixtures-132.json). The Windows artifact is checked against its GitHub artifact digest, extracted members' CRCs and its bundled installer checksum; release upload digests are compared with local bytes before publication.
+
+The [captured Windows UI](assets/windows-132.png) uses isolated test history and a simulated connection. It is not a screenshot of a live signed-in user account.
+
+To update an existing installation: **About → Check for updates → Download update → Install update**. The new installer replaces the application while retaining the existing local data/profile directory. If startup was explicitly disabled, enable it in **Settings → Start with Windows**; Windows' separate startup settings can also disable it.
